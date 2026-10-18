@@ -8,6 +8,12 @@ Claude plugin manifest always share one version; `aipg validate` enforces it.
 
 ### Security
 
+- The MCP server's Streamable HTTP transport can require a bearer token, read from `AIPG_SERVER_TOKEN` or
+  `--token-file` and checked in constant time by the MCP SDK's auth middleware. Without a token, `aipg serve`
+  refuses to listen on any host other than `127.0.0.1`, `localhost` or `::1`. The stdio transport is unchanged.
+- `aipg serve --audit-log PATH` appends one JSON line per tool call: UTC timestamp, tool, outcome, policy id and
+  version, a SHA-256 hash of the arguments, the tier from `classify_risk_tier`, and the caller as the transport
+  reports it. Tokens and arguments are never written, and a call whose line cannot be written fails.
 - Agent CLI evals no longer pass a prompt as an argument to a Windows `.cmd` or `.bat` shim, where `cmd.exe` could
   run quotes and `&` in the prompt (which includes model output when judging) as commands.
 - Every release file gets a signed SLSA build provenance attestation and a signed CycloneDX SBOM attestation, and

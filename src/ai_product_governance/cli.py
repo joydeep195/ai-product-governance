@@ -195,9 +195,20 @@ def _cmd_check(args: argparse.Namespace) -> int:
 
 
 def _cmd_serve(args: argparse.Namespace) -> int:
-    from ai_product_governance.mcp_server import serve
+    from ai_product_governance.mcp_server import ServerConfigError, serve
 
-    serve(transport=args.transport, host=args.host, port=args.port, policy_path=args.policy)
+    try:
+        serve(
+            transport=args.transport,
+            host=args.host,
+            port=args.port,
+            policy_path=args.policy,
+            token_file=args.token_file,
+            audit_log=args.audit_log,
+        )
+    except ServerConfigError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
     return 0
 
 
@@ -282,9 +293,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("serve", help="run the MCP server")
     p.add_argument("--transport", choices=("stdio", "streamable-http"), default="stdio")
-    p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--host", default="127.0.0.1", help="interface to listen on; beyond loopback a token is required")
     p.add_argument("--port", type=int, default=8000)
     p.add_argument("--policy", metavar="FILE", help="policy to enforce (default: $AIPG_POLICY, workspace, bundled)")
+    p.add_argument(
+        "--token-file",
+        metavar="FILE",
+        help="file holding the bearer token HTTP clients must send (default: $AIPG_SERVER_TOKEN)",
+    )
+    p.add_argument("--audit-log", metavar="PATH", help="append one JSON line per tool call to this file")
     p.set_defaults(func=_cmd_serve)
 
     from ai_product_governance.evals.cli import add_arguments, add_kit_arguments

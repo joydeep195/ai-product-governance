@@ -25,13 +25,46 @@ Set `AIPG_POLICY` to your policy file in the server's environment (or pass `--po
 at start-up and cannot be changed through a tool call, so every assistant connected to the server applies
 the same rules.
 
-## Remote deployment (ChatGPT connectors and shared use)
+## Run it as a shared service
 
-Clients such as ChatGPT connect to remote MCP servers over HTTPS. Run the server with the Streamable HTTP
-transport behind your organisation's gateway, which must terminate TLS and authenticate users:
+One server can serve every assistant in the organisation over Streamable HTTP. Give it a bearer token and it
+refuses any request without `Authorization: Bearer <token>`. Without a token it listens only on `127.0.0.1`,
+`localhost` or `::1`, and refuses to start on any other `--host`.
 
 ```bash
-aipg serve --transport streamable-http --host 0.0.0.0 --port 8000 --policy /etc/aipg/policy.json
+python -c "import secrets; print(secrets.token_urlsafe(32))" > /etc/aipg/token
+aipg serve --transport streamable-http --host 0.0.0.0 --port 8000 --policy /etc/aipg/policy.json \
+  --token-file /etc/aipg/token --audit-log /var/log/aipg/audit.jsonl
 ```
 
-Then register the HTTPS URL as a connector where your plan and workspace administrator allow it.
+The token can also come from the `AIPG_SERVER_TOKEN` environment variable; `--token-file` wins when both are set.
+A token must be at least 32 characters on a single line. The stdio transport is unchanged and takes no token.
+
+The server speaks plain HTTP, so run it behind a gateway or reverse proxy that terminates TLS, and never expose
+it to the internet directly. Configure each client to send the token as a header. A client that cannot send a
+fixed header, such as one that supports only OAuth sign-in, should reach the server through your gateway, which
+signs users in and adds the header. For ChatGPT connectors, register the gateway's HTTPS URL where your plan and
+workspace administrator allow it.
+
+### Audit log
+
+`--audit-log` appends one JSON line per tool call (stdio or HTTP):
+
+```json
+{"timestamp":"2026-10-18T18:14:44.088Z","event":"tools/call","tool":"classify_risk_tier","outcome":"ok","tier":"high","policy_id":"aipg-default","policy_version":"1.0.0","arguments_sha256":"e6dd7cca8dab65c8b3725d15c43d2f2479ef5f0e4079a1d9ec99c9665d0b4aa4","client":{"principal":"shared-token","name":"my-mcp-client","version":"1.4.0","address":"10.20.0.15"},"server_version":"1.0.0"}
+```
+
+| Field | Meaning |
+|---|---|
+| `timestamp` | When the call finished, in UTC |
+| `tool`, `outcome` | The tool called, and `ok` or `error` |
+| `tier` | The tier `classify_risk_tier` returned; `null` for other tools and failed calls |
+| `policy_id`, `policy_version` | The policy the server enforces |
+| `arguments_sha256` | SHA-256 of `json.dumps(arguments, sort_keys=True, separators=(",", ":"))`; the arguments themselves are not stored |
+| `client.principal` | The authenticated caller: `shared-token` for holders of the server token, `null` without authentication |
+| `client.name`, `client.version` | What the client reports about itself; not verified |
+| `client.address` | The HTTP peer address; `null` on stdio |
+| `server_version` | The `aipg` version that answered |
+
+The token is never written to the log. If a line cannot be written, the call fails instead of returning an
+unrecorded result. See [`SECURITY.md`](../../SECURITY.md) for the deployment checklist.
