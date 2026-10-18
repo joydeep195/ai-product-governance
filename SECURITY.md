@@ -23,4 +23,22 @@ Security tab. Do not open a public issue. You will get an acknowledgement within
 - Runtime dependencies are minimal (`mcp`, `jsonschema`, `pyyaml`); Dependabot keeps them and the GitHub Actions
   current.
 - Eval API keys live in a protected GitHub environment and are never available to pull requests from forks.
-- Releases are built in CI from a tagged commit after all checks pass.
+- Releases are built in CI from a tagged commit after all checks pass. The build job has a read-only token; only
+  the separate publish job can sign attestations and create the release.
+- Every GitHub Action is pinned to a full commit SHA (with its version in a comment, which Dependabot updates), and
+  checkouts do not keep the GitHub token in the local git config.
+- Each release ships with a CycloneDX SBOM of the package and its runtime dependencies.
+
+## Verifying a release
+
+Every file attached to a GitHub release (wheel, sdist, skill zip) has a signed
+[SLSA build provenance](https://slsa.dev/spec/v1.0/provenance) attestation and a signed SBOM attestation, created
+by the release workflow through GitHub artifact attestations (Sigstore). With the [GitHub CLI](https://cli.github.com/):
+
+```bash
+gh attestation verify ai_product_governance-1.0.0-py3-none-any.whl --repo joydeep195/ai-product-governance
+```
+
+This proves the file was built by this repository's release workflow from the tagged commit and has not been
+changed since. Add `--predicate-type https://cyclonedx.org/bom` to check the SBOM attestation instead of the
+provenance. If verification fails, do not install the file, and report it as described above.

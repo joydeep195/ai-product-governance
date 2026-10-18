@@ -4,15 +4,24 @@ on:
   push:
     tags: ["v*.*.*"]
 
-permissions:
-  contents: write
+# Each job asks for only what it needs: the build runs with a read-only token, and only the
+# publish job can sign attestations and create the release.
+permissions: {}
+
+env:
+  SBOM_PATH: sbom/ai-product-governance-${{ github.ref_name }}.cdx.json
 
 jobs:
-  release:
+  build:
+    name: Check, test and build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
       - run: python -m pip install -e ".[dev]" build
@@ -27,7 +36,46 @@ jobs:
         run: |
           python -m build
           aipg package --out dist
+      - name: Generate a CycloneDX SBOM of the installed package and its runtime dependencies
+        run: |
+          python -m venv /tmp/runtime
+          /tmp/runtime/bin/pip install dist/*.whl
+          python -m venv /tmp/sbom-tool
+          /tmp/sbom-tool/bin/pip install cyclonedx-bom==7.5.0
+          mkdir -p "$(dirname "$SBOM_PATH")"
+          /tmp/sbom-tool/bin/cyclonedx-py environment --output-reproducible --of JSON -o "$SBOM_PATH" /tmp/runtime/bin/python
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release
+          path: |
+            dist/
+            sbom/
+          if-no-files-found: error
+
+  publish:
+    name: Sign, attest and publish the GitHub release
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the release
+      id-token: write # sign the attestations through Sigstore
+      attestations: write # store the attestations on the repository
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release
+      - name: Attest build provenance (signed SLSA provenance for every release file)
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: dist/*
+      - name: Attest the SBOM for every release file
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: dist/*
+          sbom-path: ${{ env.SBOM_PATH }}
       - name: Publish the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/* --title "$GITHUB_REF_NAME" --generate-notes --verify-tag
+        run: >-
+          gh release create "$GITHUB_REF_NAME" dist/* "$SBOM_PATH"
+          --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes --verify-tag

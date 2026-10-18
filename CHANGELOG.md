@@ -10,6 +10,11 @@ Claude plugin manifest always share one version; `aipg validate` enforces it.
 
 - Agent CLI evals no longer pass a prompt as an argument to a Windows `.cmd` or `.bat` shim, where `cmd.exe` could
   run quotes and `&` in the prompt (which includes model output when judging) as commands.
+- Every release file gets a signed SLSA build provenance attestation and a signed CycloneDX SBOM attestation, and
+  the SBOM is attached to the release; `gh attestation verify` checks them (see SECURITY.md).
+- The release workflow builds with a read-only token in one job and signs and publishes in another.
+- Every GitHub Action is pinned to a full commit SHA, checkouts no longer keep the GitHub token, and the Claude Code
+  CLI installed by the evals workflow is pinned to a version.
 
 ### Added
 

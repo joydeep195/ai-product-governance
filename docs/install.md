@@ -101,6 +101,7 @@ Expect a high risk tier, autonomy capped at "act with approval" for launch, and 
 ## Chat apps (not coding tools)
 
 - **ChatGPT Business, Enterprise or Edu, and Claude apps:** upload the skill as a zip (zip the
-  `skills/ai-product-governance` folder, or use the zip attached to a release).
+  `skills/ai-product-governance` folder, or use the zip attached to a release; each release file is signed, and
+  [SECURITY.md](../SECURITY.md#verifying-a-release) shows how to verify it).
 - **Custom GPTs, ChatGPT or Claude Projects, Gemini Gems, Microsoft 365 Copilot agents:** use the
   [prompt pack](../integrations/prompt-pack/): instructions plus knowledge files.
