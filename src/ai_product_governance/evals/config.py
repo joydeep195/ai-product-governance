@@ -17,7 +17,7 @@ _PROVIDER = {
     "additionalProperties": False,
     "properties": {
         "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$"},
-        "provider": {"enum": ["anthropic", "openai"]},
+        "provider": {"enum": ["anthropic", "openai", "claude-code"]},
         "model": {"type": "string", "minLength": 1},
         "enabled": {"type": "boolean"},
         "params": {"type": "object"},
@@ -31,7 +31,8 @@ CONFIG_SCHEMA: dict[str, Any] = {
     "properties": {
         "$schema": {"type": "string"},
         "subjects": {"type": "array", "minItems": 1, "items": {**_PROVIDER, "required": ["id", "provider", "model"]}},
-        "judge": _PROVIDER,
+        # One judge, or a preference-ordered list: the first one with working credentials is used.
+        "judge": {"oneOf": [_PROVIDER, {"type": "array", "minItems": 1, "items": _PROVIDER}]},
         "arms": {"type": "array", "items": {"enum": list(ARMS)}, "minItems": 1, "uniqueItems": True},
         "trials": {"type": "integer", "minimum": 1, "maximum": 20},
         "concurrency": {"type": "integer", "minimum": 1, "maximum": 32},
@@ -89,7 +90,7 @@ class Gates:
 @dataclass(frozen=True)
 class EvalConfig:
     subjects: tuple[ModelSpec, ...]
-    judge: ModelSpec
+    judges: tuple[ModelSpec, ...]  # preference order
     arms: tuple[str, ...]
     trials: int
     concurrency: int
@@ -99,6 +100,11 @@ class EvalConfig:
     gates: Gates
     pricing_per_mtok: dict[str, dict[str, float]]
     path: Path
+
+    @property
+    def judge(self) -> ModelSpec:
+        """The preferred judge (the CLI falls back to later ones that have credentials)."""
+        return self.judges[0]
 
     def price(self, model: str) -> dict[str, float] | None:
         return self.pricing_per_mtok.get(model)
@@ -122,13 +128,14 @@ def load_config(path: Path) -> EvalConfig:
     )
     if len({s.id for s in subjects}) != len(subjects):
         raise ConfigError("subject ids must be unique")
-    judge_raw = raw["judge"]
-    judge = ModelSpec(
-        judge_raw.get("id", "judge"), judge_raw["provider"], judge_raw["model"], True, dict(judge_raw.get("params", {}))
+    judge_entries = raw["judge"] if isinstance(raw["judge"], list) else [raw["judge"]]
+    judges = tuple(
+        ModelSpec(j.get("id", f"judge-{i + 1}"), j["provider"], j["model"], True, dict(j.get("params", {})))
+        for i, j in enumerate(judge_entries)
     )
     return EvalConfig(
         subjects=subjects,
-        judge=judge,
+        judges=judges,
         arms=tuple(raw.get("arms", ARMS)),
         trials=raw["trials"],
         concurrency=raw.get("concurrency", 4),

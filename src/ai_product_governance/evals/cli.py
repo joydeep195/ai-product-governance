@@ -5,10 +5,11 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from dataclasses import replace
 from pathlib import Path
 
-from ai_product_governance.evals.config import ARMS, ConfigError, ModelSpec, load_config
-from ai_product_governance.evals.providers import credentials_available
+from ai_product_governance.evals.config import ARMS, ConfigError, EvalConfig, ModelSpec, load_config
+from ai_product_governance.evals.providers import readiness
 from ai_product_governance.evals.report import write_reports
 from ai_product_governance.evals.runner import build_manifest, estimate_cost, plan_jobs, run_jobs
 from ai_product_governance.evals.scenarios import ScenarioError, load_scenarios
@@ -23,12 +24,15 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--scenario", action="append", default=[], help="scenario id to run (repeatable)")
     parser.add_argument("--arms", help=f"comma-separated arms ({', '.join(ARMS)})")
     parser.add_argument("--trials", type=int, help="trials per subject x scenario x arm")
+    parser.add_argument("--model", help="override the model of every selected subject")
+    parser.add_argument("--effort", help="override the effort level of every selected subject (e.g. high, max)")
+    parser.add_argument("--judge", help="judge id from the config (default: the first one with credentials)")
     parser.add_argument("--max-cost-usd", type=float, help="stop starting new trials once spend reaches this")
     parser.add_argument("--out", help="results directory (default: evals/results/<run id>)")
     parser.add_argument("--compare", help="baseline results.json to check for regressions")
     parser.add_argument("--update-baseline", action="store_true", help="save this run as evals/baselines/latest.json")
     parser.add_argument(
-        "--dry-run", action="store_true", help="validate and print the plan and an estimate; no API calls"
+        "--dry-run", action="store_true", help="validate and print the plan and an estimate; no model calls"
     )
 
 
@@ -48,7 +52,7 @@ def run_from_args(args: argparse.Namespace) -> int:
             return 2
         scenarios = [s for s in scenarios if s.id in args.scenario]
 
-    subjects = _select_subjects(config.subjects, args.subject, args.dry_run)
+    subjects = _select_subjects(config.subjects, args.subject, args.dry_run, args.model, args.effort)
     if subjects is None:
         return 2
     arms = [a.strip() for a in args.arms.split(",")] if args.arms else list(config.arms)
@@ -65,21 +69,27 @@ def run_from_args(args: argparse.Namespace) -> int:
         f"trial(s) = {len(jobs)} generations + {len(jobs)} judge calls."
     )
     print("Rough cost estimate: " + ("n/a (missing pricing)" if estimate is None else f"${estimate:,.2f}"))
+    if any(s.provider == "claude-code" for s in subjects):
+        print("Claude Code subjects use your Claude login: usage counts against your plan, not an API bill.")
     if args.dry_run:
         for subject in subjects:
-            ready = "credentials found" if credentials_available(subject) else "no credentials"
-            print(f"  subject {subject.id}: {subject.provider}/{subject.model} ({ready})")
-        print(f"  judge: {config.judge.provider}/{config.judge.model}")
+            ready, detail = readiness(subject)
+            print(f"  subject {subject.id}: {_label(subject)} ({'ready' if ready else 'not ready'}: {detail})")
+        for candidate in config.judges:
+            ready, detail = readiness(candidate)
+            print(f"  judge {candidate.id}: {_label(candidate)} ({'ready' if ready else 'not ready'}: {detail})")
         return 0
     if not jobs:
-        print("Nothing to run.")
-        return 0
-    if not credentials_available(config.judge):
-        print("error: no credentials for the judge model; see docs/evaluation.md", file=sys.stderr)
+        print("Nothing to run: no selected subject is ready (see the messages above).")
         return 2
 
-    outcome = run_jobs(config, skill, jobs, max_cost_usd=args.max_cost_usd)
-    outcome.manifest = build_manifest(config, skill, scenarios, outcome, arms, trials, subjects)
+    judge = _select_judge(config, args.judge)
+    if judge is None:
+        return 2
+    print(f"Judge: {judge.id} ({_label(judge)})")
+
+    outcome = run_jobs(config, skill, jobs, judge_spec=judge, max_cost_usd=args.max_cost_usd)
+    outcome.manifest = build_manifest(config, skill, scenarios, outcome, arms, trials, subjects, judge)
     cells = summarise(outcome.trials)
     arm_summaries = summarise_arms(cells)
     baseline = _load_baseline(Path(args.compare)) if args.compare else None
@@ -105,7 +115,14 @@ def run_from_args(args: argparse.Namespace) -> int:
     return 1 if failed else 0
 
 
-def _select_subjects(subjects: tuple[ModelSpec, ...], requested: list[str], dry_run: bool) -> list[ModelSpec] | None:
+def _label(spec: ModelSpec) -> str:
+    effort = spec.params.get("effort")
+    return f"{spec.provider}/{spec.model}" + (f", effort {effort}" if effort else "")
+
+
+def _select_subjects(
+    subjects: tuple[ModelSpec, ...], requested: list[str], dry_run: bool, model: str | None, effort: str | None
+) -> list[ModelSpec] | None:
     by_id = {s.id: s for s in subjects}
     if requested:
         unknown = sorted(set(requested) - set(by_id))
@@ -115,13 +132,40 @@ def _select_subjects(subjects: tuple[ModelSpec, ...], requested: list[str], dry_
         chosen = [by_id[i] for i in requested]
     else:
         chosen = [s for s in subjects if s.enabled]
+    if model or effort:
+        chosen = [
+            replace(s, model=model or s.model, params={**s.params, **({"effort": effort} if effort else {})})
+            for s in chosen
+        ]
     if dry_run:
         return chosen
-    ready = [s for s in chosen if credentials_available(s)]
+    ready = []
     for subject in chosen:
-        if subject not in ready:
-            print(f"skipping subject {subject.id}: no API credentials in the environment")
+        ok, detail = readiness(subject)
+        if ok:
+            ready.append(subject)
+        else:
+            print(f"skipping subject {subject.id}: {detail}")
     return ready
+
+
+def _select_judge(config: EvalConfig, requested: str | None) -> ModelSpec | None:
+    if requested:
+        matches = [j for j in config.judges if j.id == requested]
+        if not matches:
+            print(f"error: unknown judge '{requested}'", file=sys.stderr)
+            return None
+        candidates = matches
+    else:
+        candidates = list(config.judges)
+    problems = []
+    for judge in candidates:
+        ok, detail = readiness(judge)
+        if ok:
+            return judge
+        problems.append(f"{judge.id}: {detail}")
+    print("error: no judge model is ready:\n  " + "\n  ".join(problems), file=sys.stderr)
+    return None
 
 
 def _load_baseline(path: Path) -> dict[str, float]:

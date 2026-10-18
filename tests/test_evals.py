@@ -194,7 +194,7 @@ class FakeJudge:
 
 
 def _factory(spec: ModelSpec) -> Any:
-    return FakeJudge(spec) if spec.id == "judge" else FakeSubject(spec)
+    return FakeJudge(spec) if "judge" in spec.id else FakeSubject(spec)
 
 
 def test_end_to_end_run_with_fake_models(config: EvalConfig, skill: Skill, tmp_path: Path) -> None:
@@ -244,7 +244,7 @@ def test_provider_errors_become_failed_trials(config: EvalConfig, skill: Skill) 
             raise RuntimeError("rate limited")
 
     def factory(spec: ModelSpec) -> Any:
-        return FakeJudge(spec) if spec.id == "judge" else Exploding(spec)
+        return FakeJudge(spec) if "judge" in spec.id else Exploding(spec)
 
     jobs = plan_jobs(config, [ModelSpec("x", "anthropic", "m")], [_scenario()], ["baseline"], trials=1)
     outcome = run_jobs(config, skill, jobs, provider_factory=factory, progress=lambda _: None)

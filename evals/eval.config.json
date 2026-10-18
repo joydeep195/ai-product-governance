@@ -1,6 +1,13 @@
 {
   "subjects": [
     {
+      "id": "claude-code",
+      "provider": "claude-code",
+      "model": "claude-opus-5-5",
+      "enabled": true,
+      "params": { "effort": "max", "max_parallel": 2, "timeout_seconds": 1800 }
+    },
+    {
       "id": "claude-opus-5-5",
       "provider": "anthropic",
       "model": "claude-opus-5-5",
@@ -33,11 +40,20 @@
       }
     }
   ],
-  "judge": {
-    "provider": "anthropic",
-    "model": "claude-opus-5-5",
-    "params": { "effort": "medium", "fallbacks": "default" }
-  },
+  "judge": [
+    {
+      "id": "claude-code-judge",
+      "provider": "claude-code",
+      "model": "claude-opus-5-5",
+      "params": { "effort": "high", "max_parallel": 2, "timeout_seconds": 900 }
+    },
+    {
+      "id": "api-judge",
+      "provider": "anthropic",
+      "model": "claude-opus-5-5",
+      "params": { "effort": "medium", "fallbacks": "default" }
+    }
+  ],
   "arms": ["with-skill", "baseline"],
   "trials": 3,
   "concurrency": 4,

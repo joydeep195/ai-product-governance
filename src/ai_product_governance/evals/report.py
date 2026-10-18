@@ -67,6 +67,15 @@ def render_markdown(
         f"**Gates: {verdict}** | skill v{manifest['skill_version']} | judge {manifest['judge']['model']} | "
         f"{manifest['trials']} trial(s) per cell | cost {cost}",
         "",
+    ]
+    models = [*manifest.get("subjects", []), manifest.get("judge", {})]
+    if any(m.get("provider") == "claude-code" for m in models):
+        lines += [
+            "> Claude Code runs used a Claude login: their costs are Claude Code's API-equivalent estimates. "
+            "On a Claude subscription they count against plan usage limits instead of being billed per token.",
+            "",
+        ]
+    lines += [
         "## Summary by subject and arm",
         "",
         "| Subject | Arm | Mean score | Pass rate | Critical failures | Errors |",

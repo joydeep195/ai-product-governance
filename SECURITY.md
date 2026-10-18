@@ -12,7 +12,8 @@ Security tab. Do not open a public issue. You will get an acknowledgement within
 | Bundled scripts (`risk_tier.py`, `unit_economics.py`) | Run by AI agents inside users' environments | Standard library only; no network access, no file writes, no shell; inputs validated strictly; unknown fields rejected |
 | MCP server | Called by models that may be prompt-injected | Every tool is read-only and idempotent; the policy is fixed at start-up and cannot be chosen through a tool argument; playbook and template names are checked against an allow-list built from the bundle; anticipated errors return messages without stack traces |
 | MCP server over Streamable HTTP | Network-reachable when deployed remotely | No built-in authentication: deploy behind a gateway that terminates TLS and authenticates users, and do not expose it to the internet directly |
-| Eval harness | Executes model-chosen tool calls | File reads are confined to the skill directory; only two allow-listed scripts can run, with an argument list (no shell), a timeout and an empty working directory |
+| Eval harness (API subjects) | Executes model-chosen tool calls | File reads are confined to the skill directory; only two allow-listed scripts can run, with an argument list (no shell), a timeout and an empty working directory |
+| Eval harness (`claude-code` subject) | Claude Code acts in a workspace with your login | A throwaway workspace per run; personal settings, plugins and hooks excluded; `dontAsk` permissions deny everything except Python (for the calculators) in the with-skill arm, and no tools at all in the baseline arm or the judge; API keys and host-session variables are stripped from the child environment |
 | Generated integrations | Copied into other repositories | Plain Markdown, JSON and TOML; contain no secrets |
 
 ## Supply chain

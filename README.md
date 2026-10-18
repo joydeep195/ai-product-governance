@@ -145,7 +145,7 @@ Full details: [docs/architecture.md](docs/architecture.md).
 
 | Check | What it guarantees |
 |---|---|
-| 95 unit and integration tests on Linux, Windows and macOS, Python 3.11-3.14 | Engines, MCP server, adapters and eval harness behave as specified |
+| 106 unit and integration tests on Linux, Windows and macOS, Python 3.11-3.14 | Engines, MCP server, adapters and eval harness behave as specified |
 | Bundled scripts tested on Python 3.9 | They run in code-interpreter sandboxes |
 | `ruff`, `ruff format`, `mypy --strict` | Clean, consistently typed code |
 | `aipg validate --strict` | Agent Skills spec compliance, policy schema, links, version consistency, size budgets |
@@ -161,9 +161,13 @@ pressure, autonomous money movement, premature model switching and legal overrea
 a blind rubric judge plus deterministic checks, with critical criteria that fail a trial outright. See the
 [evaluation methodology](docs/evaluation.md).
 
+No API key? Run the evals on your Claude subscription through Claude Code, which also tests whether Claude
+activates the skill on its own:
+
 ```bash
-aipg eval --dry-run      # plan and cost estimate, no API calls
-aipg eval --trials 1     # run it
+claude auth login                                 # once, in the browser
+aipg eval --subject claude-code --trials 1        # Claude Opus 5.5 at max effort by default
+aipg eval --subject claude-code --effort high     # faster, uses less of your plan
 ```
 
 ## Development

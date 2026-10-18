@@ -4,8 +4,11 @@
   structured outputs, and server-side refusal fallbacks when configured).
 * `openai` - OpenAI models through the official OpenAI SDK, plus any OpenAI-compatible
   endpoint via `base_url` (for example Gemini, Azure OpenAI, or a local model server).
+* `claude-code` - Claude Code in headless mode with the user's Claude login: no API key
+  (see claude_code.py).
 
-Both run the same manual tool loop so every model gets the same skill-host tools.
+The two API providers run the same manual tool loop so every model gets the same
+skill-host tools; Claude Code loads the skill natively instead.
 """
 
 from __future__ import annotations
@@ -43,13 +46,18 @@ class Usage:
     input_tokens: int = 0
     output_tokens: int = 0
     cache_read_tokens: int = 0
+    reported_cost_usd: float | None = None  # set when the provider reports its own cost estimate
 
     def add(self, other: Usage) -> None:
         self.input_tokens += other.input_tokens
         self.output_tokens += other.output_tokens
         self.cache_read_tokens += other.cache_read_tokens
+        if other.reported_cost_usd is not None:
+            self.reported_cost_usd = (self.reported_cost_usd or 0.0) + other.reported_cost_usd
 
     def cost(self, price: dict[str, float] | None) -> float | None:
+        if self.reported_cost_usd is not None:
+            return self.reported_cost_usd
         if price is None:
             return None
         uncached = max(self.input_tokens - self.cache_read_tokens, 0)
@@ -288,16 +296,26 @@ def api_key_env(spec: ModelSpec) -> str:
     return str(spec.params.get("api_key_env", default))
 
 
-def credentials_available(spec: ModelSpec) -> bool:
-    """Best-effort check so runs skip subjects whose API key is not configured."""
+def readiness(spec: ModelSpec) -> tuple[bool, str]:
+    """Best-effort check that a model can be called, with a hint for fixing it when it cannot."""
+    if spec.provider == "claude-code":
+        from ai_product_governance.evals.claude_code import ClaudeCodeProvider
+
+        return ClaudeCodeProvider(spec).check_ready()
     if os.environ.get(api_key_env(spec)):
-        return True
+        return True, f"{api_key_env(spec)} is set"
     # The Anthropic SDK can also authenticate from ANTHROPIC_AUTH_TOKEN or an `ant auth login` profile.
-    return (
+    if (
         spec.provider == "anthropic"
         and "api_key_env" not in spec.params
-        and bool(os.environ.get("ANTHROPIC_AUTH_TOKEN") or os.environ.get("ANTHROPIC_PROFILE"))
-    )
+        and (os.environ.get("ANTHROPIC_AUTH_TOKEN") or os.environ.get("ANTHROPIC_PROFILE"))
+    ):
+        return True, "Anthropic auth token or profile is set"
+    return False, f"set {api_key_env(spec)}"
+
+
+def credentials_available(spec: ModelSpec) -> bool:
+    return readiness(spec)[0]
 
 
 def create_provider(spec: ModelSpec) -> Provider:
@@ -305,4 +323,8 @@ def create_provider(spec: ModelSpec) -> Provider:
         return AnthropicProvider(spec)
     if spec.provider == "openai":
         return OpenAIProvider(spec)
+    if spec.provider == "claude-code":
+        from ai_product_governance.evals.claude_code import ClaudeCodeProvider
+
+        return ClaudeCodeProvider(spec)
     raise ValueError(f"Unknown provider '{spec.provider}'")

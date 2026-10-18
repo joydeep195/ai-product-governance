@@ -22,6 +22,14 @@ Build `aipg eval`:
 - Quality gates and regression comparison against a committed baseline, with JSON, Markdown and JUnit reports and
   a reproducibility manifest.
 
+### Addendum: subscription-based runs through Claude Code
+
+Many users have a Claude subscription but no API key. A `claude-code` provider runs subjects and the judge through
+Claude Code's headless mode with the user's login. It acts as a native skill host (the skill is installed at
+`.claude/skills/` in a throwaway workspace), so it also measures whether the model chooses to activate the skill.
+Bare mode cannot use a subscription login, so isolation comes from an empty workspace, project-only setting
+sources, no session persistence, deny-by-default permissions and a scrubbed environment.
+
 ## Consequences
 
 - The same scenarios compare models and quantify the skill's uplift on each.

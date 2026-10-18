@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from ai_product_governance import __version__
+from ai_product_governance.evals.claude_code import native_adherence
 from ai_product_governance.evals.config import EvalConfig, ModelSpec
 from ai_product_governance.evals.judge import grade
 from ai_product_governance.evals.providers import Provider, ProviderError, Usage, create_provider
@@ -86,6 +87,7 @@ def run_jobs(
     skill: Skill,
     jobs: list[Job],
     *,
+    judge_spec: ModelSpec | None = None,
     max_cost_usd: float | None = None,
     provider_factory: ProviderFactory = create_provider,
     progress: Callable[[str], None] = print,
@@ -95,7 +97,9 @@ def run_jobs(
     lock = threading.Lock()
     spent: list[float | None] = [0.0]
     skipped: list[str] = []
-    judge = provider_factory(config.judge)
+    judge_spec = judge_spec or config.judge
+    judge = provider_factory(judge_spec)
+    judge_price = config.price(judge_spec.model)
 
     def provider_for(spec: ModelSpec) -> Provider:
         with lock:
@@ -110,7 +114,7 @@ def run_jobs(
             if max_cost_usd is not None and current is not None and current >= max_cost_usd:
                 skipped.append(label)
                 return None
-        result = run_trial(config, skill, job, provider_for(job.subject), judge)
+        result = run_trial(config, skill, job, provider_for(job.subject), judge, judge_price)
         with lock:
             if spent[0] is not None:
                 spent[0] = None if result.cost_usd is None else spent[0] + result.cost_usd
@@ -125,18 +129,34 @@ def run_jobs(
     return RunOutcome(run_id=run_id, trials=results, skipped=skipped, total_cost_usd=spent[0])
 
 
-def run_trial(config: EvalConfig, skill: Skill, job: Job, subject: Provider, judge: Provider) -> TrialResult:
+def run_trial(
+    config: EvalConfig,
+    skill: Skill,
+    job: Job,
+    subject: Provider,
+    judge: Provider,
+    judge_price: dict[str, float] | None = None,
+) -> TrialResult:
     runtime = SkillRuntime(skill)
-    if job.arm == "with-skill":
-        system, tools, executor = runtime.system_prompt(), TOOLS, runtime.execute
-    else:
-        system, tools = config.baseline_system_prompt, []
-
-        def executor(name: str, arguments: dict[str, Any]) -> tuple[str, bool]:
-            return "Error: no tools are available.", True
-
+    with_skill = job.arm == "with-skill"
+    native = getattr(subject, "run_native", None)
+    activated: bool | None = None
     try:
-        answer = subject.run_agent(system, job.scenario.prompt, tools, executor, config.max_turns)
+        if native is not None:
+            # A native skill host (e.g. Claude Code) discovers and loads the skill itself.
+            answer = native(
+                job.scenario.prompt, skill.root if with_skill else None, config.baseline_system_prompt, config.max_turns
+            )
+            if with_skill:
+                activated, files, scripts = native_adherence(answer.tool_calls, skill.name)
+                runtime.files_read.extend(files)
+                runtime.scripts_run.extend(scripts)
+        else:
+            if with_skill:
+                system, tools, executor = runtime.system_prompt(), TOOLS, runtime.execute
+            else:
+                system, tools, executor = config.baseline_system_prompt, [], _no_tools
+            answer = subject.run_agent(system, job.scenario.prompt, tools, executor, config.max_turns)
     except Exception as exc:  # noqa: BLE001 - any provider failure becomes a failed, reported trial
         return failed_trial(job.subject.id, job.scenario, job.arm, job.trial, f"{type(exc).__name__}: {exc}")
     gen_cost = answer.usage.cost(config.price(job.subject.model))
@@ -158,10 +178,12 @@ def run_trial(config: EvalConfig, skill: Skill, job: Job, subject: Provider, jud
         return trial
 
     score, passed, critical, items = score_trial(job.scenario, answer.text, verdicts, config.pass_threshold)
-    judge_cost = judge_usage.cost(config.price(config.judge.model))
+    judge_cost = judge_usage.cost(judge_price if judge_price is not None else config.price(config.judge.model))
     routing: dict[str, bool] = {}
-    if job.arm == "with-skill":
-        routing = {f"read {path}": path in runtime.files_read for path in job.scenario.expected_reads}
+    if with_skill:
+        if activated is not None:
+            routing["activated the skill"] = activated
+        routing.update({f"read {path}": path in runtime.files_read for path in job.scenario.expected_reads})
         routing.update({f"ran {script}": script in runtime.scripts_run for script in job.scenario.expected_scripts})
     return TrialResult(
         subject=job.subject.id,
@@ -184,6 +206,10 @@ def run_trial(config: EvalConfig, skill: Skill, job: Job, subject: Provider, jud
     )
 
 
+def _no_tools(name: str, arguments: dict[str, Any]) -> tuple[str, bool]:
+    return "Error: no tools are available.", True
+
+
 def build_manifest(
     config: EvalConfig,
     skill: Skill,
@@ -192,7 +218,9 @@ def build_manifest(
     arms: list[str],
     trials: int,
     subjects: list[ModelSpec],
+    judge_spec: ModelSpec | None = None,
 ) -> dict[str, Any]:
+    judge = judge_spec or config.judge
     return {
         "run_id": outcome.run_id,
         "created_at": datetime.now(UTC).isoformat(timespec="seconds"),
@@ -201,14 +229,18 @@ def build_manifest(
         "skill_sha256": _tree_hash(skill.root),
         "config_sha256": hashlib.sha256(config.path.read_bytes()).hexdigest(),
         "scenarios": [s.id for s in scenarios],
-        "subjects": [{"id": s.id, "provider": s.provider, "model": s.model} for s in subjects],
-        "judge": {"provider": config.judge.provider, "model": config.judge.model},
+        "subjects": [_describe(s) for s in subjects],
+        "judge": _describe(judge),
         "arms": arms,
         "trials": trials,
         "git_commit": _git_commit(skill.root),
         "python": platform.python_version(),
         "sdk_versions": {name: _version(name) for name in ("anthropic", "openai", "mcp")},
     }
+
+
+def _describe(spec: ModelSpec) -> dict[str, Any]:
+    return {"id": spec.id, "provider": spec.provider, "model": spec.model, "effort": spec.params.get("effort")}
 
 
 def _tree_hash(root: Path) -> str:
