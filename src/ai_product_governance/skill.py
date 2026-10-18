@@ -108,6 +108,10 @@ class Skill:
         return self.policy_dir / "policy.schema.json"
 
     @property
+    def use_case_schema_path(self) -> Path:
+        return self.policy_dir / "use-case.schema.json"
+
+    @property
     def scripts_dir(self) -> Path:
         return self.root / "scripts"
 

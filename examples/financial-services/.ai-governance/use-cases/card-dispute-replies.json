@@ -1,0 +1,262 @@
+{
+  "$schema": "../../../../skills/ai-product-governance/assets/policy/use-case.schema.json",
+  "id": "card-dispute-replies",
+  "title": "Card dispute reply drafting",
+  "owner": "Dana Whitfield, Head of Card Servicing",
+  "policy_id": "fs-bank-ai-policy",
+  "policy_version": "2.4.0",
+  "tier": "high",
+  "last_certified": "2026-10-16",
+  "recertify_by": "2027-01-16",
+  "questionnaire": {
+    "answers": {
+      "customer_facing": true,
+      "external_publication": false,
+      "personal_data": true,
+      "sensitive_data": true,
+      "consequential_decisions": false,
+      "regulated_advice": true,
+      "vulnerable_users": false,
+      "third_party_model_provider": true,
+      "external_model_dependency": true,
+      "uses_retrieval": true,
+      "takes_actions": false,
+      "irreversible_actions": false,
+      "autonomy_level": "L2",
+      "max_financial_impact_per_action": 0,
+      "prohibited_practices": [
+        "none"
+      ]
+    },
+    "answered_by": "Dana Whitfield",
+    "answered_on": "2026-10-02"
+  },
+  "approvals": [
+    {
+      "role": "Product owner",
+      "name": "Dana Whitfield",
+      "date": "2026-10-12"
+    },
+    {
+      "role": "Engineering lead",
+      "name": "Marcus Lee",
+      "date": "2026-10-12"
+    },
+    {
+      "role": "Security lead",
+      "name": "Priya Raman",
+      "date": "2026-10-13"
+    },
+    {
+      "role": "Privacy officer",
+      "name": "Elena Costa",
+      "date": "2026-10-13"
+    },
+    {
+      "role": "Legal counsel",
+      "name": "Samuel Osei",
+      "date": "2026-10-14"
+    },
+    {
+      "role": "Compliance officer",
+      "name": "Hannah Brooks",
+      "date": "2026-10-14"
+    },
+    {
+      "role": "AI governance board",
+      "name": "Rafael Moreno, chair (minute AIGB-2026-41)",
+      "date": "2026-10-15"
+    },
+    {
+      "role": "Model risk management",
+      "name": "Grace Kim",
+      "date": "2026-10-16"
+    }
+  ],
+  "controls": [
+    {
+      "id": "GOV-01",
+      "name": "AI inventory registration",
+      "status": "done",
+      "owner": "Dana Whitfield",
+      "evidence_url": "https://grc.example.com/ai-inventory/AI-0142"
+    },
+    {
+      "id": "GOV-02",
+      "name": "Periodic re-certification",
+      "status": "done",
+      "owner": "Dana Whitfield",
+      "evidence_url": "https://grc.example.com/ai-inventory/AI-0142/certifications/2026-10-16"
+    },
+    {
+      "id": "GOV-03",
+      "name": "Approver sign-off",
+      "status": "done",
+      "owner": "Dana Whitfield",
+      "evidence_url": "https://grc.example.com/launch-reviews/LRR-2026-118"
+    },
+    {
+      "id": "EVAL-01",
+      "name": "Offline evaluation",
+      "status": "done",
+      "owner": "Marcus Lee",
+      "evidence_url": "https://git.example.com/card-servicing/dispute-replies/-/blob/main/evals/reports/2026-10-09.md"
+    },
+    {
+      "id": "EVAL-02",
+      "name": "Adversarial and red-team testing",
+      "status": "done",
+      "owner": "Priya Raman",
+      "evidence_url": "https://grc.example.com/red-team/RT-2026-077"
+    },
+    {
+      "id": "EVAL-03",
+      "name": "Fairness evaluation",
+      "status": "done",
+      "owner": "Marcus Lee",
+      "evidence_url": "https://git.example.com/card-servicing/dispute-replies/-/blob/main/evals/reports/2026-10-09-segments.md"
+    },
+    {
+      "id": "EVAL-04",
+      "name": "Continuous evaluation",
+      "status": "done",
+      "owner": "Marcus Lee",
+      "evidence_url": "https://git.example.com/card-servicing/dispute-replies/-/pipelines/48211"
+    },
+    {
+      "id": "HUM-03",
+      "name": "Sampled production review",
+      "status": "done",
+      "owner": "Dana Whitfield",
+      "evidence_url": "https://grc.example.com/reviews/dispute-replies/weekly-sample"
+    },
+    {
+      "id": "TRN-01",
+      "name": "AI disclosure",
+      "status": "done",
+      "owner": "Dana Whitfield",
+      "evidence_url": "https://git.example.com/card-servicing/dispute-replies/-/blob/main/docs/disclosure-copy.md"
+    },
+    {
+      "id": "TRN-02",
+      "name": "Explanation and contestability",
+      "status": "waived",
+      "owner": "Dana Whitfield",
+      "evidence_url": "",
+      "approver": "Hannah Brooks, Compliance officer",
+      "reason": "The AI drafts replies at L2 and an agent edits and sends each one; it makes no decision about the dispute. Customers contest outcomes through the existing card dispute process, which already gives reasons and a human review."
+    },
+    {
+      "id": "SEC-01",
+      "name": "Prompt-injection defences",
+      "status": "done",
+      "owner": "Priya Raman",
+      "evidence_url": "https://grc.example.com/security/design-reviews/SDR-2026-203"
+    },
+    {
+      "id": "SEC-03",
+      "name": "Output handling",
+      "status": "done",
+      "owner": "Priya Raman",
+      "evidence_url": "https://git.example.com/card-servicing/dispute-replies/-/merge_requests/311"
+    },
+    {
+      "id": "PRV-01",
+      "name": "Privacy review",
+      "status": "done",
+      "owner": "Elena Costa",
+      "evidence_url": "https://grc.example.com/privacy/dpia/DPIA-2026-064"
+    },
+    {
+      "id": "PRV-02",
+      "name": "Data minimisation and retention",
+      "status": "done",
+      "owner": "Elena Costa",
+      "evidence_url": "https://grc.example.com/privacy/data-flows/DF-0142"
+    },
+    {
+      "id": "PRV-03",
+      "name": "Vendor data terms",
+      "status": "done",
+      "owner": "Elena Costa",
+      "evidence_url": "https://grc.example.com/vendors/model-provider/assessment-2026"
+    },
+    {
+      "id": "OPS-01",
+      "name": "Monitoring and alerting",
+      "status": "done",
+      "owner": "Marcus Lee",
+      "evidence_url": "https://dashboards.example.com/d/dispute-replies"
+    },
+    {
+      "id": "OPS-02",
+      "name": "Kill switch and fallback",
+      "status": "done",
+      "owner": "Marcus Lee",
+      "evidence_url": "https://grc.example.com/ops/kill-switch-tests/2026-10-08"
+    },
+    {
+      "id": "OPS-03",
+      "name": "Audit logging",
+      "status": "done",
+      "owner": "Marcus Lee",
+      "evidence_url": "https://git.example.com/card-servicing/dispute-replies/-/blob/main/docs/audit-logging.md"
+    },
+    {
+      "id": "OPS-04",
+      "name": "Incident runbook",
+      "status": "done",
+      "owner": "Marcus Lee",
+      "evidence_url": "https://git.example.com/card-servicing/dispute-replies/-/blob/main/docs/runbook.md"
+    },
+    {
+      "id": "OPS-05",
+      "name": "Model change management",
+      "status": "done",
+      "owner": "Marcus Lee",
+      "evidence_url": "https://git.example.com/card-servicing/dispute-replies/-/blob/main/docs/model-change-policy.md"
+    },
+    {
+      "id": "MRM-01",
+      "name": "Independent model validation",
+      "status": "done",
+      "owner": "Grace Kim",
+      "evidence_url": "https://grc.example.com/model-risk/validations/MV-2026-033"
+    },
+    {
+      "id": "HUM-01",
+      "name": "Human review of every output",
+      "status": "done",
+      "owner": "Dana Whitfield",
+      "evidence_url": "https://git.example.com/card-servicing/dispute-replies/-/blob/main/docs/agent-review-flow.md"
+    },
+    {
+      "id": "PRV-04",
+      "name": "Permission-aware retrieval",
+      "status": "done",
+      "owner": "Priya Raman",
+      "evidence_url": "https://git.example.com/card-servicing/dispute-replies/-/blob/main/tests/test_retrieval_permissions.py"
+    },
+    {
+      "id": "TPR-01",
+      "name": "Third-party dependency and exit plan",
+      "status": "done",
+      "owner": "Grace Kim",
+      "evidence_url": "https://grc.example.com/third-party/TPR-0918"
+    },
+    {
+      "id": "OPS-06",
+      "name": "Complaint monitoring",
+      "status": "done",
+      "owner": "Dana Whitfield",
+      "evidence_url": "https://grc.example.com/complaints/ai-tagging/dispute-replies"
+    },
+    {
+      "id": "OPS-07",
+      "name": "Communications record-keeping",
+      "status": "done",
+      "owner": "Hannah Brooks",
+      "evidence_url": "https://grc.example.com/records/retention/RR-0142"
+    }
+  ]
+}

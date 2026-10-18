@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/joydeep195/ai-product-governance/use-case.schema.json",
+  "title": "AI use-case governance record",
+  "description": "One AI use case at .ai-governance/use-cases/<id>.json: the questionnaire answers, the tier they produced under a specific policy version, the status and evidence of every required control, approver sign-offs and the re-certification dates. `aipg record new` creates one; `aipg check` re-classifies it against the effective policy and fails until it is complete. Empty strings mean 'not provided yet'.",
+  "type": "object",
+  "required": ["id", "title", "owner", "policy_id", "policy_version", "tier", "last_certified", "recertify_by", "questionnaire", "approvals", "controls"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "Stable identifier. The file is named <id>.json."
+    },
+    "title": { "type": "string", "minLength": 1 },
+    "owner": { "type": "string", "description": "Accountable owner of the use case (GOV-01)." },
+    "policy_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "policy_id of the policy the use case was certified against."
+    },
+    "policy_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Version of that policy at the last certification."
+    },
+    "tier": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]*$",
+      "description": "Tier ID the answers produced at the last certification."
+    },
+    "last_certified": {
+      "$ref": "#/$defs/date",
+      "description": "Date of the last gate review that classified the use case against the policy."
+    },
+    "recertify_by": {
+      "oneOf": [{ "$ref": "#/$defs/date" }, { "type": "null" }],
+      "description": "Latest date for the next re-certification (GOV-02): at most the tier's recertification_months after last_certified. Null only for tiers without a cadence."
+    },
+    "questionnaire": {
+      "type": "object",
+      "required": ["answers", "answered_by", "answered_on"],
+      "additionalProperties": false,
+      "properties": {
+        "answers": {
+          "type": "object",
+          "description": "Questionnaire answers keyed by the policy's question IDs.",
+          "propertyNames": { "pattern": "^[a-z][a-z0-9_]*$" }
+        },
+        "answered_by": { "type": "string" },
+        "answered_on": { "$ref": "#/$defs/date" }
+      }
+    },
+    "approvals": {
+      "type": "array",
+      "description": "One sign-off per approver role the tier requires (GOV-03).",
+      "items": {
+        "type": "object",
+        "required": ["role", "name", "date"],
+        "additionalProperties": false,
+        "properties": {
+          "role": { "type": "string", "minLength": 1, "description": "An approver role from the policy tier." },
+          "name": { "type": "string", "description": "Person who signed." },
+          "date": { "$ref": "#/$defs/optional_date" }
+        }
+      }
+    },
+    "controls": {
+      "type": "array",
+      "description": "Every control the policy requires for these answers, with its status.",
+      "items": {
+        "type": "object",
+        "required": ["id", "status"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[A-Z]+-\\d{2}$" },
+          "name": { "type": "string", "description": "Control name, for readers of the record." },
+          "status": { "enum": ["open", "done", "waived"] },
+          "owner": { "type": "string" },
+          "evidence_url": {
+            "type": "string",
+            "pattern": "^(https?://\\S+)?$",
+            "description": "Link to the evidence the policy names for this control. Required when status is done."
+          },
+          "approver": { "type": "string", "description": "Who approved the waiver. Required when status is waived." },
+          "reason": { "type": "string", "description": "Why the control is waived. Required when status is waived." }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "date": { "type": "string", "format": "date", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+    "optional_date": { "anyOf": [{ "const": "" }, { "$ref": "#/$defs/date" }] }
+  }
+}

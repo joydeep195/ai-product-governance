@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
+import json
 import sys
 import zipfile
+from datetime import date
 from pathlib import Path
 
 from ai_product_governance import __version__, engines
@@ -97,6 +100,100 @@ def _cmd_economics(args: argparse.Namespace) -> int:
     return int(engines.unit_economics().main(argv))
 
 
+def _iso_date(value: str) -> date:
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"'{value}' is not a date in YYYY-MM-DD form") from None
+
+
+def _never_crash_on_encoding() -> None:
+    """Records and policies may contain characters the console cannot encode (e.g. cp1252 on Windows)."""
+    reconfigure = getattr(sys.stdout, "reconfigure", None)
+    if reconfigure is not None:
+        with contextlib.suppress(ValueError, OSError):
+            reconfigure(errors="replace")
+
+
+def _cmd_record_new(args: argparse.Namespace) -> int:
+    from ai_product_governance.records import (
+        RECORDS_DIR,
+        ProhibitedUseCaseError,
+        RecordError,
+        check_record,
+        new_record,
+        policy_for_record,
+        write_record,
+    )
+
+    _never_crash_on_encoding()
+    engine = engines.risk_tier()
+    out = Path(args.out) if args.out else RECORDS_DIR / f"{args.id}.json"
+    if out.name != f"{args.id}.json":
+        print(f"error: --out must name the file {args.id}.json so `aipg check` can match it to the id", file=sys.stderr)
+        return 2
+    if out.exists() and not args.force:
+        print(f"error: {out} already exists; pass --force to replace it", file=sys.stderr)
+        return 2
+    try:
+        policy = policy_for_record(out, args.policy)
+    except engine.PolicyError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 3
+    try:
+        source = sys.stdin.read() if args.answers == "-" else Path(args.answers).read_text(encoding="utf-8")
+        record, result = new_record(
+            json.loads(source),
+            args.id,
+            policy,
+            on=args.date or date.today(),
+            title=args.title or "",
+            owner=args.owner,
+            answered_by=args.answered_by,
+        )
+    except ProhibitedUseCaseError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    except (OSError, ValueError, RecordError, engine.AnswerError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    write_record(out, record)
+    print(f"wrote {out}")
+    print(f"{record['title']}: {result['tier']['name']} tier under {policy.label}, from the {policy.source}")
+    if result["unanswered_questions"]:
+        print("unanswered questions: " + ", ".join(result["unanswered_questions"]))
+    outstanding = len(check_record(out, policy, args.date or date.today()).problems)
+    print(f"{outstanding} item(s) to resolve before `aipg check` passes; list them with `aipg check {out}`.")
+    return 0
+
+
+def _cmd_check(args: argparse.Namespace) -> int:
+    from ai_product_governance.records import (
+        RECORDS_DIR,
+        RecordError,
+        check_records,
+        find_records,
+        render_json,
+        render_markdown,
+        render_text,
+    )
+
+    _never_crash_on_encoding()
+    try:
+        paths = find_records([Path(p) for p in args.paths] or ([RECORDS_DIR] if RECORDS_DIR.is_dir() else []))
+    except RecordError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    if not paths:
+        where = ", ".join(args.paths) or RECORDS_DIR.as_posix()
+        print(f"error: no use-case records found in {where}; create one with `aipg record new`", file=sys.stderr)
+        return 2
+    results = check_records(paths, args.policy, args.as_of or date.today())
+    render = {"md": render_markdown, "json": render_json}.get(args.format, render_text)
+    sys.stdout.write(render(results))
+    return 0 if all(result.passed for result in results) else 1
+
+
 def _cmd_serve(args: argparse.Namespace) -> int:
     from ai_product_governance.mcp_server import serve
 
@@ -149,6 +246,39 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--example", action="store_true")
     p.add_argument("--format", choices=("json", "md"), default="md")
     p.set_defaults(func=_cmd_economics)
+
+    p = sub.add_parser("record", help="create use-case governance records")
+    record = p.add_subparsers(dest="record_command", required=True)
+    q = record.add_parser("new", help="classify answers and write .ai-governance/use-cases/<id>.json")
+    q.add_argument("--answers", metavar="FILE", required=True, help="questionnaire answers as JSON ('-' for stdin)")
+    q.add_argument("--id", required=True, help="record ID: lowercase letters, digits and hyphens")
+    q.add_argument("--title", metavar="TEXT", help="use-case title (default: derived from the ID)")
+    q.add_argument("--owner", metavar="NAME", default="", help="accountable owner of the use case")
+    q.add_argument("--answered-by", metavar="NAME", default="", help="who answered the questionnaire")
+    q.add_argument("--date", metavar="DATE", type=_iso_date, help="date of the assessment, YYYY-MM-DD (default: today)")
+    q.add_argument("--policy", metavar="FILE", help="policy (default: $AIPG_POLICY, the workspace's, bundled)")
+    q.add_argument(
+        "--out", metavar="FILE", help="where to write the record (default: .ai-governance/use-cases/<id>.json)"
+    )
+    q.add_argument("--force", action="store_true", help="replace an existing record")
+    q.set_defaults(func=_cmd_record_new)
+
+    p = sub.add_parser("check", help="fail unless every use-case record is complete and current under the policy")
+    p.add_argument(
+        "paths",
+        nargs="*",
+        metavar="PATH",
+        help="record files, use-cases folders or workspaces (default: .ai-governance/use-cases)",
+    )
+    p.add_argument("--policy", metavar="FILE", help="policy (default: $AIPG_POLICY, each record's workspace, bundled)")
+    p.add_argument(
+        "--as-of",
+        metavar="DATE",
+        type=_iso_date,
+        help="judge re-certification on this date, YYYY-MM-DD (default: today)",
+    )
+    p.add_argument("--format", choices=("text", "md", "json"), default="text", help="md suits a pull-request comment")
+    p.set_defaults(func=_cmd_check)
 
     p = sub.add_parser("serve", help="run the MCP server")
     p.add_argument("--transport", choices=("stdio", "streamable-http"), default="stdio")
