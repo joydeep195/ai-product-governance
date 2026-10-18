@@ -27,6 +27,9 @@ through a tool argument. Every tool is annotated read-only and idempotent.
   Copilot, Cursor, Gemini CLI, Codex, and ChatGPT connectors when hosted remotely.
 - A prompt-injected model cannot redirect the server to arbitrary files or swap the policy.
 - Remote deployment needs an authenticating gateway; the server does not implement authentication itself.
+  *Update (2026-10-18):* the Streamable HTTP transport now requires a bearer token beyond loopback and can
+  write an audit log of tool calls. TLS termination, per-user identity and rate limiting still belong to the
+  gateway; see [`SECURITY.md`](../../SECURITY.md#running-the-mcp-server-as-a-shared-service).
 
 ## Alternatives considered
 

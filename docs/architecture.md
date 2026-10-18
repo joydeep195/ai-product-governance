@@ -48,7 +48,7 @@ flowchart LR
 | Skill (`skills/ai-product-governance/`) | The governance method: rules, routing, playbooks, templates, policy, engines | [ADR 0001](adr/0001-agent-skills-as-canonical-source.md), [ADR 0003](adr/0003-deterministic-engines-in-the-skill.md) |
 | Policy (`assets/policy/`) | Tiers, rules, controls, approvers, eval minimums as validated data | [ADR 0002](adr/0002-policy-as-code.md) |
 | Adapter generator (`adapters.py`) | Renders tool-specific integrations; CI rejects drift | [ADR 0006](adr/0006-generated-integrations.md) |
-| MCP server (`mcp_server.py`) | Read-only tools, prompts and resources; central policy enforcement | [ADR 0004](adr/0004-mcp-for-central-enforcement.md) |
+| MCP server (`mcp_server.py`, `audit.py`) | Read-only tools, prompts and resources; central policy enforcement; bearer-token auth and an audit log for shared use | [ADR 0004](adr/0004-mcp-for-central-enforcement.md) |
 | Eval harness (`evals/`) | Same scenarios with and without the skill, on whichever single AI tool the user has | [ADR 0005](adr/0005-model-agnostic-evals.md), [ADR 0007](adr/0007-one-tool-is-enough.md) |
 | Validator (`validate.py`) | Agent Skills spec, schema, links, version consistency, size budgets | — |
 
@@ -75,6 +75,33 @@ sequenceDiagram
 
 Progressive disclosure keeps context small: about 100 tokens of metadata always, the SKILL.md body only when the
 skill activates, and one playbook per gate on demand.
+
+## The MCP server as a shared service
+
+ADR 0004 makes the MCP server the central enforcement point: one deployment, one fixed policy, every assistant
+connected to it. Over Streamable HTTP, each request passes three layers before a result leaves the server.
+
+```mermaid
+flowchart LR
+    clients["Assistants:<br/>Claude, VS Code, Cursor,<br/>Gemini CLI, Codex"] -->|HTTPS| gateway["Gateway or reverse proxy<br/>TLS, optional SSO, rate limits"]
+    gateway -->|"HTTP with Authorization: Bearer"| auth
+    subgraph serve["aipg serve --transport streamable-http"]
+        auth["SDK bearer-auth middleware<br/>StaticTokenVerifier"] --> audit["AuditMiddleware<br/>one line per tools/call"] --> tools["Read-only tools<br/>policy fixed at start-up"]
+    end
+    audit --> log[("audit.jsonl")]
+```
+
+| Layer | Behaviour |
+|---|---|
+| Start-up checks (`serve`) | Reads the token from `--token-file` or `AIPG_SERVER_TOKEN` and rejects one shorter than 32 characters. Without a token the server listens only on `127.0.0.1`, `localhost` or `::1`, the hosts on which the SDK enables DNS-rebinding protection; any other `--host` stops start-up with an error |
+| Authentication | The MCP SDK's own bearer-auth middleware, given a `TokenVerifier` that compares SHA-256 digests with `hmac.compare_digest`. Requests without the token get `401` and never reach a session |
+| Audit | An SDK server middleware around every `tools/call`. It hashes the arguments, records the outcome, the tier for `classify_risk_tier`, the policy id and version, and the caller as the transport reports it, then appends one JSON line under a lock. If the line cannot be written, the client gets an error instead of the result |
+| Tools | Unchanged: read-only, idempotent, with the policy fixed at start-up |
+
+The stdio transport is unchanged: it serves only the process that launched it, so it takes no token, though
+`--audit-log` works there too. The record format is documented in
+[`integrations/mcp/README.md`](../integrations/mcp/README.md#audit-log) and the deployment checklist in
+[`SECURITY.md`](../SECURITY.md#running-the-mcp-server-as-a-shared-service).
 
 ## Repository layout
 

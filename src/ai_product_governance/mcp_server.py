@@ -11,18 +11,31 @@ the server starts (--policy, $AIPG_POLICY or the workspace policy) and can never
 chosen or overridden through a tool argument, so a prompt-injected model cannot point
 the server at arbitrary files. Reference and template names are checked against an
 allow-list built from the bundle's own directory listing.
+
+Over Streamable HTTP the server can require a bearer token ($AIPG_SERVER_TOKEN or
+--token-file), checked by the SDK's own auth middleware, and refuses to listen beyond
+loopback without one. --audit-log records every tool call as a JSON line.
 """
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
+import logging
+import os
+from pathlib import Path
 from typing import Any
 
+from mcp.server.auth.provider import AccessToken
+from mcp.server.auth.settings import AuthSettings
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ResourceNotFoundError, ToolError
 from mcp_types import ToolAnnotations
+from pydantic import AnyHttpUrl
 
 from ai_product_governance import __version__, engines
+from ai_product_governance.audit import AuditLog, AuditMiddleware
 from ai_product_governance.policy import EffectivePolicy, load_effective_policy
 from ai_product_governance.prompts import compose_workflow_prompt
 from ai_product_governance.skill import Skill, load_skill
@@ -30,6 +43,16 @@ from ai_product_governance.workflows import WORKFLOWS, Workflow
 
 SERVER_NAME = "ai-product-governance"
 REPOSITORY_URL = "https://github.com/joydeep195/ai-product-governance"
+
+TOKEN_ENV = "AIPG_SERVER_TOKEN"  # noqa: S105 - the variable's name, not a token
+MIN_TOKEN_LENGTH = 32
+# The audit log's `client.principal` for callers holding the server token.
+TOKEN_PRINCIPAL = "shared-token"  # noqa: S105
+# The hosts for which the SDK turns on DNS-rebinding protection. Listening anywhere else, including other
+# loopback addresses, requires a token.
+LOCAL_HOSTS = ("127.0.0.1", "localhost", "::1")
+
+logger = logging.getLogger(__name__)
 
 _READ_ONLY = ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False)
 
@@ -43,13 +66,47 @@ _MCP_PREAMBLE = """\
 """
 
 
-def build_server(policy_path: str | None = None) -> MCPServer[Any]:
-    """Create the MCP server. The policy is resolved once, at start-up."""
+class ServerConfigError(ValueError):
+    """The server was asked to start in an unsafe or unusable configuration."""
+
+
+class StaticTokenVerifier:
+    """Accepts exactly one bearer token. Implements the SDK's `TokenVerifier` protocol."""
+
+    def __init__(self, token: str) -> None:
+        self._digest = hashlib.sha256(token.encode("utf-8")).digest()
+
+    async def verify_token(self, token: str) -> AccessToken | None:
+        # Comparing fixed-length digests in constant time leaks neither the token nor its length through timing.
+        candidate = hashlib.sha256(token.encode("utf-8")).digest()
+        if not hmac.compare_digest(candidate, self._digest):
+            return None
+        # AccessToken requires a token field; a placeholder keeps the secret out of any repr the SDK logs.
+        return AccessToken(token="[redacted]", client_id=TOKEN_PRINCIPAL, scopes=[])  # noqa: S106
+
+
+def build_server(
+    policy_path: str | None = None, *, token: str | None = None, audit_log: str | Path | None = None
+) -> MCPServer[Any]:
+    """Create the MCP server. The policy is resolved once, at start-up.
+
+    `token` makes the Streamable HTTP endpoint require `Authorization: Bearer <token>`; other transports ignore
+    it. `audit_log` appends one JSON line per tool call to that file.
+    """
     skill = load_skill()
     policy = load_effective_policy(policy_path)
     risk_engine = engines.risk_tier()
     economics_engine = engines.unit_economics()
 
+    middleware = []
+    if audit_log is not None:
+        try:
+            log = AuditLog(audit_log)
+        except OSError as exc:
+            raise ServerConfigError(f"cannot open --audit-log {audit_log}: {exc.strerror or exc}") from exc
+        middleware.append(AuditMiddleware(log, policy))
+
+    verifier = StaticTokenVerifier(token) if token is not None else None
     server: MCPServer[Any] = MCPServer(
         name=SERVER_NAME,
         title="AI Product Governance",
@@ -62,6 +119,11 @@ def build_server(policy_path: str | None = None) -> MCPServer[Any]:
             "calculate_unit_economics for tiers and costs instead of estimating them. "
             f"Effective policy: {policy.label}."
         ),
+        token_verifier=verifier,
+        # The SDK requires an issuer URL, but publishes it only from OAuth routes or protected-resource
+        # metadata, and a static-token server enables neither, so a placeholder is enough.
+        auth=AuthSettings(issuer_url=AnyHttpUrl("http://localhost"), resource_server_url=None) if verifier else None,
+        middleware=middleware,
     )
 
     _register_tools(server, skill, policy, risk_engine, economics_engine)
@@ -216,11 +278,69 @@ def _message(exc: KeyError) -> str:
     return str(exc.args[0]) if exc.args else str(exc)
 
 
-def serve(transport: str = "stdio", host: str = "127.0.0.1", port: int = 8000, policy_path: str | None = None) -> None:
-    server = build_server(policy_path)
+def read_token(token_file: str | None = None) -> str | None:
+    """The bearer token from `token_file` if given, else from $AIPG_SERVER_TOKEN, else None."""
+    if token_file is not None:
+        source = f"--token-file {token_file}"
+        try:
+            token = _decode_text(Path(token_file).read_bytes()).strip()
+        except (OSError, UnicodeDecodeError) as exc:
+            reason = exc.strerror if isinstance(exc, OSError) and exc.strerror else str(exc)
+            raise ServerConfigError(f"cannot read {source}: {reason}") from exc
+        if not token:
+            raise ServerConfigError(f"{source} is empty")
+    else:
+        source = f"${TOKEN_ENV}"
+        token = os.environ.get(TOKEN_ENV, "").strip()
+        if not token:
+            return None
+    if any(character.isspace() for character in token):
+        raise ServerConfigError(f"the token in {source} must be a single line with no spaces")
+    if len(token) < MIN_TOKEN_LENGTH:
+        raise ServerConfigError(
+            f"the token in {source} is {len(token)} characters; use at least {MIN_TOKEN_LENGTH}, for example "
+            '`python -c "import secrets; print(secrets.token_urlsafe(32))"`'
+        )
+    return token
+
+
+def _decode_text(data: bytes) -> str:
+    # Windows PowerShell writes UTF-16 with a byte-order mark by default, and Notepad may add a UTF-8 one.
+    if data.startswith((b"\xff\xfe", b"\xfe\xff")):
+        return data.decode("utf-16")
+    return data.decode("utf-8-sig")
+
+
+def serve(
+    transport: str = "stdio",
+    host: str = "127.0.0.1",
+    port: int = 8000,
+    policy_path: str | None = None,
+    *,
+    token_file: str | None = None,
+    audit_log: str | None = None,
+) -> None:
     if transport == "stdio":
-        server.run("stdio")
+        if token_file is not None:
+            raise ServerConfigError(
+                "--token-file applies to --transport streamable-http; a stdio server talks only to the process "
+                "that launched it"
+            )
+        build_server(policy_path, audit_log=audit_log).run("stdio")
     elif transport == "streamable-http":
+        token = read_token(token_file)
+        if token is None and host not in LOCAL_HOSTS:
+            raise ServerConfigError(
+                f"refusing to listen on {host} without authentication: set ${TOKEN_ENV} or pass --token-file, "
+                f"or bind to {', '.join(LOCAL_HOSTS)}"
+            )
+        server = build_server(policy_path, token=token, audit_log=audit_log)
+        if token is None:
+            logger.warning("No bearer token configured: any process on this machine can call the server")
+        else:
+            logger.info("Bearer-token authentication is required")
+        if audit_log is not None:
+            logger.info("Writing an audit line per tool call to %s", audit_log)
         server.run("streamable-http", host=host, port=port)
     else:
         raise ValueError(f"Unsupported transport: {transport}")
