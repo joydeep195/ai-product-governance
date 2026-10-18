@@ -73,6 +73,102 @@ python skills/ai-product-governance/scripts/risk_tier.py --validate-policy --pol
 aipg validate          # also checks every policy under examples/ and warns if a higher tier is weaker than a lower one
 ```
 
+## Use-case records and `aipg check`
+
+The policy says which controls and approvers a use case needs; a use-case record says whether it has them. Each
+record is a JSON file at `.ai-governance/use-cases/<id>.json`, validated by
+[`use-case.schema.json`](../skills/ai-product-governance/assets/policy/use-case.schema.json), holding:
+
+- `id`, `title` and the accountable `owner`;
+- `policy_id` and `policy_version` it was certified against, and the `tier` the answers produced;
+- the `questionnaire`: `answers`, `answered_by` and `answered_on`;
+- `controls`: for each, the `id`, a `status` (`open`, `done` or `waived`), an `evidence_url` and an `owner`, plus the
+  `approver` and `reason` for a waiver;
+- `approvals`: the `role`, `name` and `date` of each sign-off;
+- `last_certified` and `recertify_by`.
+
+Create one from questionnaire answers. The command classifies them with the same engine as `aipg tier`, against the
+effective policy, and writes every required control as `open`, a blank sign-off for each approver role, and
+`recertify_by` set by the tier's `recertification_months`:
+
+```bash
+aipg record new --answers refund-agent.answers.json --id refund-agent --owner "Payments product team" --answered-by "Alex Morgan"
+```
+
+Then fill it in as the work lands. Mark a control `done` with a link to the evidence the policy names, or `waived`
+with the approver and the reason, and record each approver's name and date when they sign.
+[`card-dispute-replies.json`](../examples/financial-services/.ai-governance/use-cases/card-dispute-replies.json) is
+a complete record for a high-risk use case under the example bank policy, including one waiver.
+
+`aipg check` re-classifies every record's answers against the effective policy and lists everything that stops it
+passing:
+
+| Fails when | To fix it |
+|---|---|
+| The stored `tier` differs from what the answers now produce, or a question is unanswered | Repeat the risk review and update the record |
+| A required control is missing, `open`, `done` without an `evidence_url`, or `waived` without an approver and a reason | Finish the control, link the evidence or get the waiver approved |
+| An approver role the tier requires has no name and date in `approvals` | Collect the sign-off |
+| Today is after `recertify_by`, or `recertify_by` is further from `last_certified` than the tier's cadence | Re-certify, then update `last_certified` and `recertify_by` |
+| `policy_id` or `policy_version` differs from the effective policy | Repeat the gate review under the new policy, then update the version and dates |
+| The answers fall in a prohibited tier, `owner` or `answered_by` is empty, the `id` does not match the file name, or the file breaks the schema | Stop the work, or correct the record |
+
+```bash
+aipg check                                   # every record in .ai-governance/use-cases/
+aipg check path/to/workspace other/record.json
+aipg check --format md > governance.md       # a summary for a pull-request comment
+aipg check --as-of 2027-01-31                # will we still pass on launch day?
+```
+
+It exits 0 when every record passes, 1 when any fails and 2 when it finds no records. Each record is checked against
+the policy for its own workspace: `--policy`, then `AIPG_POLICY`, then the `.ai-governance/policy.json` beside its
+`use-cases` folder, then the bundled default. `aipg validate` also checks every record under `examples/`, but not
+against today's date, so the examples do not expire.
+
+### Adding `aipg check` to CI
+
+Run it on every pull request so a change cannot merge while a record is incomplete, and on a schedule so a lapsed
+re-certification fails even when nothing changes. For GitHub Actions, save this as
+`.github/workflows/ai-governance.yml`:
+
+```yaml
+name: AI governance
+
+on:
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1"  # Mondays: catches re-certifications that lapse between changes
+
+permissions:
+  contents: read
+  pull-requests: write  # for the comment step only
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Install aipg  # pin a release tag or commit so a new version cannot change the gate unannounced
+        run: pip install "git+https://github.com/joydeep195/ai-product-governance"
+      - name: Check every use-case record against the policy
+        run: aipg check --format md > governance-check.md
+      - name: Add the result to the job summary
+        if: always()
+        run: cat governance-check.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Comment on the pull request
+        if: failure() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr comment "${{ github.event.pull_request.number }}" --body-file governance-check.md
+```
+
+Make the job a required status check in the branch protection rules so a failing record blocks the merge. Pull
+requests from forks get a read-only token, so the comment step fails there; the job summary still shows the result.
+To enforce one organisation-wide policy instead of each repository's own, set `AIPG_POLICY` on the check step. In
+other CI systems, run `aipg check` and treat a non-zero exit code as a failed build.
+
 ## Distributing a policy
 
 - **Per repository:** commit `.ai-governance/policy.json`; skill-native tools and the bundled scripts pick it up.

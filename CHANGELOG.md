@@ -13,6 +13,14 @@ Claude plugin manifest always share one version; `aipg validate` enforces it.
 
 ### Added
 
+- Use-case records make the controls enforceable. `.ai-governance/use-cases/<id>.json` (schema:
+  `assets/policy/use-case.schema.json`) records a use case's answers, tier, policy version, each control's status
+  and evidence, approver sign-offs and re-certification dates. `aipg record new` classifies answers against the
+  effective policy and writes a record with every required control open. `aipg check` re-classifies each record and
+  exits 1 when the tier is stale, a required control is not done with evidence or waived with an approver, an
+  approver has not signed, re-certification has lapsed or the policy version changed; `--format md` renders a
+  pull-request comment. `aipg validate` checks example records, and the financial-services example includes a
+  complete one. The policy guide shows how to run the check in CI.
 - The financial-services example policy (2.4.0) adds adverse action reasons (`TRN-03`), a third-party dependency
   and exit plan (`TPR-01`), complaint monitoring (`OPS-06`) and communications record-keeping (`OPS-07`), each
   applied by the questionnaire answers that call for it; an `external_model_dependency` question; and a compliance

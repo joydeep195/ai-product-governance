@@ -15,7 +15,8 @@ from typing import Literal
 
 from ai_product_governance import __version__
 from ai_product_governance.adapters import PROMPT_PACK_CHAR_LIMIT, prompt_pack_instructions
-from ai_product_governance.policy import policy_problems
+from ai_product_governance.policy import load_effective_policy, policy_problems
+from ai_product_governance.records import check_record, record_workspace
 from ai_product_governance.skill import SKILL_NAME, Skill, SkillError, load_skill
 from ai_product_governance.workflows import GATES, WORKFLOWS
 
@@ -49,6 +50,7 @@ def validate_repository(repo: Path) -> list[Finding]:
     findings += check_links(skill)
     findings += check_policy(skill)
     findings += check_example_policies(repo)
+    findings += check_example_records(repo)
     findings += check_lifecycle_consistency(skill)
     findings += check_versions(repo, skill)
     findings += check_prompt_pack(skill)
@@ -124,6 +126,28 @@ def check_example_policies(repo: Path) -> list[Finding]:
     findings: list[Finding] = []
     for path in sorted((repo / "examples").rglob("policy.json")):
         findings += check_policy_file(path, path.relative_to(repo).as_posix())
+    return findings
+
+
+def check_example_records(repo: Path) -> list[Finding]:
+    """Example use-case records must keep passing `aipg check` against their workspace policy as both evolve.
+
+    Re-certification is not judged against today's date, so the examples never expire.
+    """
+    findings: list[Finding] = []
+    default_policy = load_skill(repo / "skills" / SKILL_NAME).default_policy_path
+    for path in sorted((repo / "examples").rglob("*.json")):
+        workspace = record_workspace(path)
+        if workspace is None:
+            continue
+        label = path.relative_to(repo).as_posix()
+        workspace_policy = workspace / ".ai-governance" / "policy.json"
+        try:
+            policy = load_effective_policy(str(workspace_policy if workspace_policy.is_file() else default_policy))
+        except ValueError as exc:  # the engine's PolicyError; check_example_policies reports the details
+            findings.append(Finding("error", label, f"cannot load the policy: {exc}"))
+            continue
+        findings += [Finding("error", label, problem) for problem in check_record(path, policy, as_of=None).problems]
     return findings
 
 

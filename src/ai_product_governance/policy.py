@@ -37,13 +37,13 @@ class EffectivePolicy:
         return f"{self.id} v{self.version}"
 
 
-def schema_errors(policy: Any, schema_path: Path | None = None) -> list[str]:
-    """Validate a policy document against policy.schema.json; return readable errors."""
+def schema_errors(document: Any, schema_path: Path | None = None) -> list[str]:
+    """Validate a document against a JSON Schema (default: policy.schema.json); return readable errors."""
     path = schema_path or load_skill().policy_schema_path
     schema = json.loads(path.read_text(encoding="utf-8"))
-    validator = Draft202012Validator(schema)
+    validator = Draft202012Validator(schema, format_checker=Draft202012Validator.FORMAT_CHECKER)
     errors = []
-    for error in sorted(validator.iter_errors(policy), key=lambda e: list(e.absolute_path)):
+    for error in sorted(validator.iter_errors(document), key=lambda e: list(e.absolute_path)):
         location = "/".join(str(part) for part in error.absolute_path) or "(root)"
         errors.append(f"{location}: {error.message}")
     return errors
