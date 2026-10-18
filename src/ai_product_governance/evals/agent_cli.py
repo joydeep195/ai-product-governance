@@ -119,8 +119,11 @@ PROFILES: dict[str, CliProfile] = {
 }
 
 
+_WINDOWS = os.name == "nt"
+
+
 def _is_batch_file(executable: str) -> bool:
-    return os.name == "nt" and Path(executable).suffix.lower() in (".bat", ".cmd")
+    return _WINDOWS and Path(executable).suffix.lower() in (".bat", ".cmd")
 
 
 def _scrubbed_environment() -> dict[str, str]:

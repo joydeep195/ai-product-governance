@@ -109,7 +109,7 @@ def test_failures_are_reported_not_raised(tmp_path: Path) -> None:
 def test_prompt_is_never_passed_to_a_windows_batch_file(
     profile: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(agent_cli.os, "name", "nt")
+    monkeypatch.setattr(agent_cli, "_WINDOWS", True)  # patching os.name would break pathlib off Windows
     shim = tmp_path / f"{profile}.CMD"
     shim.write_text("@echo off\r\n", encoding="utf-8")
     cli = AgentCliProvider(ModelSpec("x", "agent-cli", "inherit", True, {"profile": profile, "command": str(shim)}))
