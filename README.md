@@ -68,7 +68,7 @@ sign-in or an API key.
 | Governance method: rules, six gates, playbooks, templates | The skill, loaded natively | The skill where supported, otherwise the prompt pack |
 | Policy as code: your organisation's tiers, controls and approvers | `.ai-governance/policy.json` in the repo | Upload your policy file with the prompt pack |
 | Deterministic calculators: risk tier, unit economics | The bundled Python scripts | Code execution where the tool has it, the MCP server, or the documented formulas |
-| Evals: does the skill improve answers? | `aipg eval` detects your tool and uses it to answer and to grade | `aipg eval-kit`: copy-and-paste steps, scored offline |
+| Evals: does the skill improve answers? | `/ai-eval`: your agent runs the suite in its own session with fresh sub-agents; or `aipg eval`, which detects your tool | `aipg eval-kit`: copy-and-paste steps, scored offline |
 
 ## Quick start
 
@@ -186,6 +186,9 @@ aipg eval --trials 1       # runs the suite with the first one that is ready
 
 aipg eval-kit create       # chat-only tool (ChatGPT, Gemini, M365 Copilot)? copy-and-paste kit, scored offline
 ```
+
+Or skip the setup entirely: in an agentic tool, open this repository and run `/ai-eval` (or ask it to "evaluate
+the skill"). Your agent runs the suite in its own session, with a fresh sub-agent for every answer and grading.
 
 ## Development
 

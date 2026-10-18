@@ -9,7 +9,7 @@ import pytest
 from mcp import Client
 
 from ai_product_governance.mcp_server import build_server
-from ai_product_governance.workflows import WORKFLOWS
+from ai_product_governance.workflows import EVAL_WORKFLOW, WORKFLOWS
 
 EXPECTED_TOOLS = {
     "get_governance_instructions",
@@ -101,13 +101,29 @@ def test_prompts_cover_every_workflow() -> None:
     async def scenario() -> None:
         async with Client(build_server()) as client:
             prompts = {p.name: p for p in (await client.list_prompts()).prompts}
-            assert set(prompts) == {flow.id for flow in WORKFLOWS}
+            assert set(prompts) == {flow.id for flow in WORKFLOWS} | {EVAL_WORKFLOW.id}
             for flow in WORKFLOWS:
                 assert [a.name for a in prompts[flow.id].arguments or []] == [flow.argument]
             rendered = await client.get_prompt("ai-launch-review", {"status": "Kill switch untested"})
             text = rendered.messages[0].content.text  # type: ignore[union-attr]
             assert "Kill switch untested" in text
             assert "Gate 4" in text and "aipg-default v1.1.0" in text
+
+    run(scenario())
+
+
+def test_eval_prompt_carries_the_procedure_and_the_options() -> None:
+    async def scenario() -> None:
+        async with Client(build_server()) as client:
+            prompt = next(p for p in (await client.list_prompts()).prompts if p.name == EVAL_WORKFLOW.id)
+            [argument] = prompt.arguments or []
+            assert argument.name == "options" and not argument.required
+            plain = await client.get_prompt(EVAL_WORKFLOW.id)
+            text = plain.messages[0].content.text  # type: ignore[union-attr]
+            assert "aipg eval-kit create --agent-run" in text and "fresh sub-agent" in text
+            assert "None given: run the full suite with one trial." in text
+            chosen = await client.get_prompt(EVAL_WORKFLOW.id, {"options": "only g0-deterministic-first"})
+            assert "only g0-deterministic-first" in chosen.messages[0].content.text  # type: ignore[union-attr]
 
     run(scenario())
 

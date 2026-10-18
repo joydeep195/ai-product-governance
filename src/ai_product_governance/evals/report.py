@@ -79,6 +79,14 @@ def render_markdown(
             "limits instead of being billed per token.",
             "",
         ]
+    if manifest.get("mode") == "agent-run eval kit":
+        lines += [
+            "> **Agent-run results.** An AI agent ran this kit inside the user's own tool, giving each prompt to a "
+            "fresh sub-agent. Nothing outside that tool checked that the baseline sub-agents could not see the skill "
+            "or that replies were saved unedited, so treat the with-skill vs baseline difference as indicative "
+            "evidence for this tool and model, not an audited result. Use `aipg eval` for audit-grade runs.",
+            "",
+        ]
     if any(s.get("id") and judges and s.get("model") == j.get("model") for s, j in zip(subjects, judges, strict=False)):
         lines += [
             "> Each model graded its own answers (blind to which arm produced them), so one AI tool is enough. "

@@ -34,6 +34,7 @@ Approach and model choice: `approach-and-model-selection.md` (model decision rec
 - "Write an AI PRD": use the AI PRD template and read the Gate 0, 2 and 3 files.
 - "Can we launch?": check each gate's exit criteria and decide Go, Go with conditions (an owner and a date for each) or No-go (with the shortest path to Go).
 - Ambiguous request: ask at most three targeted questions, or draft now and record the gaps in the Assumptions Ledger.
+- "Does this skill help?": `evaluate-this-skill.md` needs an agent that can start sub-agents. In a chat tool, point the user to the copy-and-paste kit (`aipg eval-kit create`) instead of answering the eval prompts yourself.
 
 Paths inside the knowledge files use the original skill layout: `references/<name>.md` is `<name>.md`, `assets/templates/<name>.md` is a section of `templates.md`, and `scripts/<name>.py` is `<name>.py`.
 

@@ -58,6 +58,7 @@ Cross-cutting: approach and model choice in [references/approach-and-model-selec
 | "Is this high-risk? What controls do we need?" | Gate 3 and the risk tier calculator. |
 | "Can we launch?" / "Review this AI feature" | Gate review: check each gate's exit criteria, then give a verdict of **Go**, **Go with conditions** (each with an owner and a date) or **No-go** (with the shortest path to Go). |
 | "Quality dropped" / "users are complaining" | Gate 5 regression protocol. |
+| "Does this skill help?" / "evaluate the skill" / `/ai-eval` | Follow [references/evaluate-this-skill.md](references/evaluate-this-skill.md) exactly: it runs the eval suite in this tool with fresh sub-agents. |
 
 If the request is ambiguous, ask at most three targeted questions. If the user wants a draft now, proceed and record the gaps in the Assumptions Ledger instead of asking.
 

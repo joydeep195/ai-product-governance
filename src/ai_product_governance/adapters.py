@@ -18,7 +18,7 @@ import json
 from pathlib import Path
 
 from ai_product_governance.skill import SKILL_NAME, Skill, load_skill
-from ai_product_governance.workflows import GATES, WORKFLOWS
+from ai_product_governance.workflows import EVAL_WORKFLOW, GATES, WORKFLOWS
 
 OUTPUT_DIR = "integrations"
 REPOSITORY = "https://github.com/joydeep195/ai-product-governance"
@@ -112,6 +112,9 @@ def prompt_pack_instructions(skill: Skill) -> str:
         "date for each) or No-go (with the shortest path to Go).",
         "- Ambiguous request: ask at most three targeted questions, or draft now and record the gaps in the "
         "Assumptions Ledger.",
+        '- "Does this skill help?": `evaluate-this-skill.md` needs an agent that can start sub-agents. In a chat '
+        "tool, point the user to the copy-and-paste kit (`aipg eval-kit create`) instead of answering the eval "
+        "prompts yourself.",
         "",
         "Paths inside the knowledge files use the original skill layout: `references/<name>.md` is `<name>.md`, "
         "`assets/templates/<name>.md` is a section of `templates.md`, and `scripts/<name>.py` is `<name>.py`.",
@@ -218,7 +221,13 @@ def _copilot(skill: Skill) -> dict[str, str]:
                 "",
             ]
         )
-    rows = "\n".join(f"| `/{flow.id}` | {flow.description} |" for flow in WORKFLOWS)
+    files[f"{base}/.github/prompts/{EVAL_WORKFLOW.id}.prompt.md"] = _copilot_eval_prompt()
+    rows = "\n".join(
+        [
+            *(f"| `/{flow.id}` | {flow.description} |" for flow in WORKFLOWS),
+            f"| `/{EVAL_WORKFLOW.id}` | {EVAL_WORKFLOW.description} |",
+        ]
+    )
     files[f"{base}/README.md"] = f"""{GENERATED_NOTE}
 
 # GitHub Copilot
@@ -240,6 +249,29 @@ skill works as-is. These prompt files add one slash command per governance workf
 For the deterministic tools without running scripts, also connect the MCP server (see `../mcp/`).
 """
     return files
+
+
+def _copilot_eval_prompt() -> str:
+    flow = EVAL_WORKFLOW
+    placeholder = "${input:" + flow.argument + ":" + flow.argument_hint + "}"
+    return "\n".join(
+        [
+            "---",
+            f"name: {flow.id}",
+            f"description: {_yaml_string(flow.description)}",
+            f"argument-hint: {_yaml_string(flow.argument_hint)}",
+            "agent: agent",
+            "---",
+            "",
+            f"Use the **{SKILL_NAME}** Agent Skill (in `.github/skills/` or `.agents/skills/`). Read "
+            f"`references/{flow.reference}.md` from it and follow that procedure exactly: it runs the skill's eval "
+            "suite here, giving every prompt to a fresh sub-agent, and needs a checkout of the "
+            "ai-product-governance repository.",
+            "",
+            f"Options from the user: {placeholder}",
+            "",
+        ]
+    )
 
 
 # --------------------------------------------------------------------------- AGENTS.md

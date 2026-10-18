@@ -37,9 +37,9 @@ from pydantic import AnyHttpUrl
 from ai_product_governance import __version__, engines
 from ai_product_governance.audit import AuditLog, AuditMiddleware
 from ai_product_governance.policy import EffectivePolicy, load_effective_policy
-from ai_product_governance.prompts import compose_workflow_prompt
+from ai_product_governance.prompts import compose_eval_prompt, compose_workflow_prompt
 from ai_product_governance.skill import Skill, load_skill
-from ai_product_governance.workflows import WORKFLOWS, Workflow
+from ai_product_governance.workflows import EVAL_WORKFLOW, WORKFLOWS, Workflow
 
 SERVER_NAME = "ai-product-governance"
 REPOSITORY_URL = "https://github.com/joydeep195/ai-product-governance"
@@ -255,6 +255,11 @@ def _register_resources(server: MCPServer[Any], skill: Skill, policy: EffectiveP
 def _register_prompts(server: MCPServer[Any], skill: Skill, policy: EffectivePolicy) -> None:
     for flow in WORKFLOWS:
         _register_prompt(server, skill, policy, flow)
+
+    def evaluate(options: str = "") -> str:
+        return compose_eval_prompt(skill, options)
+
+    server.prompt(name=EVAL_WORKFLOW.id, title=EVAL_WORKFLOW.title, description=EVAL_WORKFLOW.description)(evaluate)
 
 
 def _register_prompt(server: MCPServer[Any], skill: Skill, policy: EffectivePolicy, flow: Workflow) -> None:

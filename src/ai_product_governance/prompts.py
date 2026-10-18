@@ -8,7 +8,21 @@ that cannot read files or call tools.
 from __future__ import annotations
 
 from ai_product_governance.skill import Skill
-from ai_product_governance.workflows import Workflow
+from ai_product_governance.workflows import EVAL_WORKFLOW, Workflow
+
+
+def compose_eval_prompt(skill: Skill, options: str) -> str:
+    """The /ai-eval procedure from the skill, plus whatever the user asked for (scenarios, trials)."""
+    return "\n".join(
+        [
+            skill.read_reference(EVAL_WORKFLOW.reference).strip(),
+            "",
+            "## The user's options",
+            "",
+            options.strip() or "None given: run the full suite with one trial.",
+            "",
+        ]
+    )
 
 
 def compose_workflow_prompt(skill: Skill, flow: Workflow, value: str, policy_label: str) -> str:

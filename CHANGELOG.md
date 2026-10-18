@@ -24,6 +24,13 @@ Claude plugin manifest always share one version; `aipg validate` enforces it.
 
 ### Added
 
+- `/ai-eval` evaluates the skill inside the AI tool the user already works in, with no sign-in, CLI or API key.
+  The agent follows the skill's new `references/evaluate-this-skill.md`: it runs
+  `aipg eval-kit create --agent-run`, starts a fresh sub-agent for every answer and blind grading, and scores the
+  kit. Agent-run kits write one self-contained task file per sub-agent (`prompts/`, `grading/`) that says what it
+  may use and where to save its reply, so the agent only sends one line per sub-agent. Their reports are labelled
+  as agent-run, indicative rather than audited evidence. Available as an MCP prompt, a Copilot prompt file and a
+  SKILL.md route.
 - Use-case records make the controls enforceable. `.ai-governance/use-cases/<id>.json` (schema:
   `assets/policy/use-case.schema.json`) records a use case's answers, tier, policy version, each control's status
   and evidence, approver sign-offs and re-certification dates. `aipg record new` classifies answers against the

@@ -139,6 +139,31 @@ WORKFLOWS: tuple[Workflow, ...] = (
 )
 
 
+@dataclass(frozen=True)
+class EvalWorkflow:
+    """A workflow about the skill itself rather than a governance gate: it follows one reference verbatim."""
+
+    id: str
+    title: str
+    description: str
+    argument: str
+    argument_hint: str
+    reference: str
+
+
+EVAL_WORKFLOW = EvalWorkflow(
+    id="ai-eval",
+    title="Evaluate the skill with your own AI tool",
+    description=(
+        "Run the skill's eval suite inside this AI tool with fresh sub-agents, using its own session: "
+        "no API key or extra sign-in."
+    ),
+    argument="options",
+    argument_hint="Optional: scenario ids to run, or a number of trials",
+    reference="evaluate-this-skill",
+)
+
+
 def workflow(workflow_id: str) -> Workflow:
     for item in WORKFLOWS:
         if item.id == workflow_id:

@@ -13,7 +13,7 @@ from ai_product_governance.adapters import (
     write_outputs,
 )
 from ai_product_governance.skill import Skill
-from ai_product_governance.workflows import WORKFLOWS
+from ai_product_governance.workflows import EVAL_WORKFLOW, WORKFLOWS
 
 
 def test_committed_integrations_are_up_to_date(repo: Path) -> None:
@@ -68,6 +68,14 @@ def test_one_copilot_prompt_per_workflow(repo: Path) -> None:
         assert f"name: {flow.id}\n" in content
         assert "${input:" in content
         assert f"assets/templates/{flow.template}.md" in content
+
+
+def test_copilot_eval_prompt_points_at_the_procedure(repo: Path) -> None:
+    content = build_outputs(repo)[f"integrations/github-copilot/.github/prompts/{EVAL_WORKFLOW.id}.prompt.md"]
+    assert content.startswith("---\n") and f"name: {EVAL_WORKFLOW.id}\n" in content
+    assert f"references/{EVAL_WORKFLOW.reference}.md" in content and "${input:options:" in content
+    readme = build_outputs(repo)["integrations/github-copilot/README.md"]
+    assert f"`/{EVAL_WORKFLOW.id}`" in readme
 
 
 def test_mcp_configs_are_valid(repo: Path) -> None:

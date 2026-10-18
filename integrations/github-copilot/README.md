@@ -22,5 +22,6 @@ skill works as-is. These prompt files add one slash command per governance workf
 | `/ai-launch-review` | Decide Go, Go with conditions or No-go for an AI launch and plan a staged rollout (Gate 4). |
 | `/ai-regression-review` | Diagnose why an AI feature got worse, or review an AI incident, using the Gate 5 protocol. |
 | `/ai-model-decision` | Choose the approach (prompting, RAG, agent, fine-tuning) and model on evidence, and record the decision. |
+| `/ai-eval` | Run the skill's eval suite inside this AI tool with fresh sub-agents, using its own session: no API key or extra sign-in. |
 
 For the deterministic tools without running scripts, also connect the MCP server (see `../mcp/`).

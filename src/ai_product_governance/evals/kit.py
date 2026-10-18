@@ -11,6 +11,14 @@ apps, ...) the kit turns the suite into copy-and-paste steps:
      checks, gates and report formats as automated runs.
 
 One AI tool does everything. No API key, CLI or scripting is involved.
+
+In agent-run mode (`aipg eval-kit create --agent-run`) the user's own agent does the pasting, as
+the skill's `references/evaluate-this-skill.md` describes. Every file in `prompts/` and then
+`grading/` is a complete task: the arm's access rules, the request, and the file to save the
+reply in. The agent sends each fresh sub-agent one line ("Read `<task>` and do exactly what it
+says.") and never relays long prompts or replies itself. The report labels such runs as
+agent-run, because nothing outside the tool verifies that the baseline sub-agents could not see
+the skill.
 """
 
 from __future__ import annotations
@@ -48,6 +56,44 @@ JSON_REPLY_FORMAT = (
 )
 
 
+MANUAL, AGENT_RUN = "manual", "agent-run"
+MODES = (MANUAL, AGENT_RUN)
+REPORT_MODES = {MANUAL: "manual eval kit", AGENT_RUN: "agent-run eval kit"}
+
+
+# The one line the user's agent sends to each fresh sub-agent. Everything else is in the task file, so the agent
+# never relays long prompts or replies by hand.
+SUB_AGENT_MESSAGE = "Read `{task}` and do exactly what it says."
+
+
+def agent_run_preamble(arm: str, skill_root: Path) -> str:
+    """The access rules a sub-agent gets, so both arms differ only in access to the skill."""
+    if arm == "with-skill":
+        return (
+            f"You have the AI Product Governance Agent Skill at `{skill_root.as_posix()}`. Read its `SKILL.md` first "
+            "and use it as it instructs: its playbooks, templates and scripts. Apart from this file and that skill "
+            "folder, do not read any file."
+        )
+    return (
+        "Answer from your own knowledge. Apart from reading this file and writing your answer where it says, do not "
+        "read files, run commands, search, or use any skill, plugin or tool."
+    )
+
+
+GRADER_PREAMBLE = (
+    "Grade only the text in this file. Apart from reading this file and writing your reply where it says, do not "
+    "read files, run commands, search, or use any skill or tool."
+)
+
+
+def _task_file(preamble: str, body: str, reply_path: Path, what: str) -> str:
+    return (
+        f"{preamble}\n\n{body}\n\n## When you finish\n\n"
+        f"Write {what} into `{reply_path.as_posix()}`, replacing everything in that file, exactly as you would reply. "
+        "Then reply with just: saved\n"
+    )
+
+
 class KitError(ValueError):
     """The kit is incomplete or malformed."""
 
@@ -67,7 +113,10 @@ def create_kit(
     scenarios: list[Scenario],
     trials: int = 1,
     tool: str = "",
+    mode: str = MANUAL,
 ) -> Path:
+    if mode not in MODES:
+        raise KitError(f"Unknown kit mode '{mode}'. Available: {', '.join(MODES)}")
     kit_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     kit_dir = kit_root / kit_id
     (kit_dir / "answers").mkdir(parents=True)
@@ -84,7 +133,8 @@ def create_kit(
         "package_version": __version__,
         "skill_version": skill.version,
         "skill_sha256": tree_hash(skill.root),
-        "tool": tool or "manual (any chat tool)",
+        "tool": tool or ("agent-run (unnamed tool)" if mode == AGENT_RUN else "manual (any chat tool)"),
+        "mode": mode,
         "trials": trials,
         "arms": list(config.arms),
         "scenarios": [s.id for s in scenarios],
@@ -94,6 +144,16 @@ def create_kit(
     _write(kit_dir / "kit.json", json.dumps(manifest, indent=2) + "\n")
     for item in items:
         _write(kit_dir / "answers" / f"{item.id}.md", PASTE_MARKER + "\n\n")
+    if mode == AGENT_RUN:
+        (kit_dir / "prompts").mkdir()
+        for item in items:
+            request = f"## The request\n\n{config.baseline_system_prompt}\n\n{by_id[item.scenario].prompt}"
+            answer = (kit_dir / "answers" / f"{item.id}.md").resolve()
+            preamble = agent_run_preamble(item.arm, skill.root.resolve())
+            _write(kit_dir / "prompts" / f"{item.id}.md", _task_file(preamble, request, answer, "your complete answer"))
+        tasks = [(kit_dir / "prompts" / f"{item.id}.md").resolve() for item in items]
+        _write(kit_dir / "1-ANSWERS.md", _agent_run_sheet(kit_id, kit_dir, tasks, "answers", "grade"))
+        return kit_dir
 
     lines = [
         f"# Eval kit {kit_id}, step 1 of 3: collect answers",
@@ -144,6 +204,9 @@ def prepare_grading(kit_dir: Path, scenarios: list[Scenario]) -> Path:
     random.Random(manifest["kit_id"]).shuffle(order)  # noqa: S311 - shuffling for blinding, not security
     grading = [{"id": f"G{index:02d}", "answer": item.id} for index, item in enumerate(order, start=1)]
     (kit_dir / "verdicts").mkdir(exist_ok=True)
+    agent_run = manifest.get("mode") == AGENT_RUN
+    if agent_run:
+        (kit_dir / "grading").mkdir(exist_ok=True)
     lines = [
         f"# Eval kit {manifest['kit_id']}, step 2 of 3: grade the answers",
         "",
@@ -158,6 +221,10 @@ def prepare_grading(kit_dir: Path, scenarios: list[Scenario]) -> Path:
         response = read_reply(kit_dir / "answers" / f"{item.id}.md")
         prompt = f"{JUDGE_SYSTEM}\n{judge_prompt(scenario, response)}\n\n{JSON_REPLY_FORMAT}"
         _write(kit_dir / "verdicts" / f"{entry['id']}.md", PASTE_MARKER + "\n\n")
+        if agent_run:
+            verdict = (kit_dir / "verdicts" / f"{entry['id']}.md").resolve()
+            task = _task_file(GRADER_PREAMBLE, prompt, verdict, "only the JSON object")
+            _write(kit_dir / "grading" / f"{entry['id']}.md", task)
         fence = "`" * max(3, _longest_backtick_run(prompt) + 1)
         lines += [
             f"## {entry['id']}",
@@ -170,7 +237,11 @@ def prepare_grading(kit_dir: Path, scenarios: list[Scenario]) -> Path:
             "",
         ]
     lines += ["---", "", f"When every verdict file is filled in, run `aipg eval-kit score {kit_dir.as_posix()}`.", ""]
-    _write(kit_dir / "2-GRADING.md", "\n".join(lines))
+    if agent_run:
+        tasks = [(kit_dir / "grading" / f"{entry['id']}.md").resolve() for entry in grading]
+        _write(kit_dir / "2-GRADING.md", _agent_run_sheet(manifest["kit_id"], kit_dir, tasks, "verdicts", "score"))
+    else:
+        _write(kit_dir / "2-GRADING.md", "\n".join(lines))
     manifest["grading"] = grading
     _write(kit_dir / "kit.json", json.dumps(manifest, indent=2) + "\n")
     return kit_dir / "2-GRADING.md"
@@ -185,6 +256,7 @@ def score_kit(
     items = {entry["id"]: KitItem(**entry) for entry in manifest["answers"]}
     by_id = {s.id: s for s in scenarios}
     tool = str(manifest.get("tool", "manual"))
+    mode = str(manifest.get("mode", MANUAL))
     trials: list[TrialResult] = []
     problems = []
     for entry in manifest["grading"]:
@@ -216,15 +288,20 @@ def score_kit(
         "skill_version": manifest.get("skill_version", skill.version),
         "skill_sha256": manifest.get("skill_sha256", ""),
         "scenarios": manifest["scenarios"],
-        "subjects": [{"id": tool, "provider": "manual", "model": tool, "effort": None}],
-        "judge": {"id": f"{tool}-judge", "provider": "manual", "model": tool, "effort": None},
-        "judges": {tool: {"id": f"{tool}-judge", "provider": "manual", "model": tool, "effort": None}},
+        "subjects": [{"id": tool, "provider": mode, "model": tool, "effort": None}],
+        "judge": {"id": f"{tool}-judge", "provider": mode, "model": tool, "effort": None},
+        "judges": {tool: {"id": f"{tool}-judge", "provider": mode, "model": tool, "effort": None}},
         "arms": manifest["arms"],
         "trials": manifest["trials"],
-        "mode": "manual eval kit",
+        "mode": REPORT_MODES.get(mode, REPORT_MODES[MANUAL]),
     }
     paths = write_reports(kit_dir / "report", report_manifest, trials, cells, arms, gates, [], None)
     return paths, gates
+
+
+def kit_mode(kit_dir: Path) -> str:
+    """The kit's mode: `manual` (copy and paste) or `agent-run` (an agent drives fresh sub-agents)."""
+    return str(_load(kit_dir).get("mode", MANUAL))
 
 
 def read_reply(path: Path) -> str:
@@ -243,6 +320,27 @@ def _load(kit_dir: Path) -> dict[str, Any]:
         raise KitError(f"{kit_dir} is not an eval kit (no kit.json)")
     data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
     return data
+
+
+def _agent_run_sheet(kit_id: str, kit_dir: Path, tasks: list[Path], replies: str, next_step: str) -> str:
+    step, title = ("1", "collect answers") if replies == "answers" else ("2", "grade the answers")
+    lines = [
+        f"# Eval kit {kit_id}, step {step} of 3: {title} (agent-run)",
+        "",
+        "Start one **fresh sub-agent** per line below and send it that line, exactly, and nothing else. Each task file",
+        f"says what the sub-agent may use and where it saves its reply (in `{replies}/`). Never do a task yourself and",
+        "never edit a reply; if a sub-agent fails or leaves its file empty, start a new one with the same line.",
+        "",
+        "The full procedure is in the skill's `references/evaluate-this-skill.md`.",
+        "",
+        *(f"- {SUB_AGENT_MESSAGE.format(task=task.as_posix())}" for task in tasks),
+        "",
+        "---",
+        "",
+        f"When every file in `{replies}/` is filled in, run `aipg eval-kit {next_step} {kit_dir.as_posix()}`.",
+        "",
+    ]
+    return "\n".join(lines)
 
 
 def _longest_backtick_run(text: str) -> int:

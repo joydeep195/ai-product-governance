@@ -158,13 +158,26 @@ def add_kit_arguments(parser: argparse.ArgumentParser) -> None:
     create.add_argument("--scenario", action="append", default=[], help="scenario id to include (repeatable)")
     create.add_argument("--tool", default="", help="label for the AI tool you will use, e.g. 'ChatGPT (GPT-5)'")
     create.add_argument("--out", help="folder for kits (default: evals/kits)")
+    create.add_argument(
+        "--agent-run",
+        action="store_true",
+        help="for an AI agent that runs the kit itself with fresh sub-agents (the skill's /ai-eval workflow)",
+    )
     for name, text in (("grade", "write the blind grading prompts"), ("score", "score the kit and write the report")):
         command = sub.add_parser(name, help=text)
         command.add_argument("kit", help="the kit folder created by `aipg eval-kit create`")
 
 
 def run_kit_from_args(args: argparse.Namespace) -> int:
-    from ai_product_governance.evals.kit import KitError, create_kit, prepare_grading, score_kit
+    from ai_product_governance.evals.kit import (
+        AGENT_RUN,
+        MANUAL,
+        KitError,
+        create_kit,
+        kit_mode,
+        prepare_grading,
+        score_kit,
+    )
 
     repo = find_repo_root()
     config = load_config(repo / "evals" / "eval.config.json")
@@ -178,15 +191,28 @@ def run_kit_from_args(args: argparse.Namespace) -> int:
                     print("error: no matching scenarios", file=sys.stderr)
                     return 2
             kit_root = Path(args.out) if args.out else repo / "evals" / "kits"
-            kit_dir = create_kit(kit_root, config, skill, scenarios, trials=args.trials, tool=args.tool)
+            mode = AGENT_RUN if args.agent_run else MANUAL
+            kit_dir = create_kit(kit_root, config, skill, scenarios, trials=args.trials, tool=args.tool, mode=mode)
             answers = len(scenarios) * len(config.arms) * args.trials
             print(f"Created {kit_dir}")
-            print(f"Step 1: open {kit_dir / '1-ANSWERS.md'} and collect {answers} answers with your AI tool.")
+            if mode == AGENT_RUN:
+                print(
+                    f"Step 1: start {answers} fresh sub-agents and send each one line from {kit_dir / '1-ANSWERS.md'}; "
+                    "each sub-agent saves its own answer."
+                )
+            else:
+                print(f"Step 1: open {kit_dir / '1-ANSWERS.md'} and collect {answers} answers with your AI tool.")
             return 0
         kit_dir = Path(args.kit)
         if args.kit_command == "grade":
             sheet = prepare_grading(kit_dir, scenarios)
-            print(f"Step 2: open {sheet} and grade each answer in a new chat without the skill.")
+            if kit_mode(kit_dir) == AGENT_RUN:
+                print(
+                    f"Step 2: start a fresh sub-agent without the skill for each line in {sheet}; each sub-agent saves "
+                    "its own verdicts."
+                )
+            else:
+                print(f"Step 2: open {sheet} and grade each answer in a new chat without the skill.")
             return 0
         paths, gates = score_kit(kit_dir, config, skill, scenarios)
         print(f"Report: {paths['report']}")
