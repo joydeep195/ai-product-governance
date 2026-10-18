@@ -1,0 +1,230 @@
+{
+  "$schema": "./policy.schema.json",
+  "policy_id": "aipg-default",
+  "version": "1.0.0",
+  "name": "Default AI product governance policy",
+  "owner": "AI governance board",
+  "description": "Reference policy shipped with the ai-product-governance skill. Copy it to .ai-governance/policy.json in your workspace and adapt the tiers, rules, controls and approvers to your organisation. Tiers are informed by the EU AI Act risk categories and the NIST AI RMF but are not a legal classification.",
+  "default_tier": "minimal",
+  "autonomy_levels": [
+    { "id": "L0", "name": "Inform", "description": "The AI surfaces information; a human decides everything." },
+    { "id": "L1", "name": "Suggest", "description": "The AI proposes options; a human chooses." },
+    { "id": "L2", "name": "Draft", "description": "The AI produces a complete draft; a human reviews, edits and sends it." },
+    { "id": "L3", "name": "Act with approval", "description": "The AI prepares an action; a human approves each action before it runs." },
+    { "id": "L4", "name": "Act and report", "description": "The AI acts, then reports with an undo window; a human monitors and can reverse." },
+    { "id": "L5", "name": "Autonomous", "description": "The AI acts without review of individual actions; humans audit samples and metrics." }
+  ],
+  "tiers": [
+    {
+      "id": "minimal",
+      "name": "Minimal",
+      "rank": 1,
+      "description": "Internal, assistive use with no personal data beyond business contact details.",
+      "required_controls": ["GOV-01", "GOV-03", "EVAL-01", "OPS-01", "OPS-02", "OPS-05"],
+      "approvers": ["Product owner", "Engineering lead"],
+      "max_autonomy_at_launch": "L5",
+      "recertification_months": 12,
+      "eval_requirements": {
+        "golden_set_min": 50,
+        "pass_rate_min": 0.85,
+        "critical_failures_max": 0,
+        "runs_per_case_min": 3,
+        "adversarial_slice_required": false,
+        "fairness_slices_required": false,
+        "judge_calibration_cases_min": 50,
+        "weekly_human_review_sample_min": 0
+      }
+    },
+    {
+      "id": "limited",
+      "name": "Limited",
+      "rank": 2,
+      "description": "Customer-facing or externally published output, personal data, data shared with an external model provider, or hard-to-reverse actions.",
+      "required_controls": [
+        "GOV-01", "GOV-02", "GOV-03",
+        "EVAL-01", "EVAL-02", "EVAL-04",
+        "HUM-03",
+        "TRN-01",
+        "SEC-01", "SEC-03",
+        "PRV-01", "PRV-02", "PRV-03",
+        "OPS-01", "OPS-02", "OPS-03", "OPS-04", "OPS-05"
+      ],
+      "approvers": ["Product owner", "Engineering lead", "Security lead", "Privacy officer"],
+      "max_autonomy_at_launch": "L4",
+      "recertification_months": 6,
+      "eval_requirements": {
+        "golden_set_min": 150,
+        "pass_rate_min": 0.9,
+        "critical_failures_max": 0,
+        "runs_per_case_min": 3,
+        "adversarial_slice_required": true,
+        "fairness_slices_required": false,
+        "judge_calibration_cases_min": 50,
+        "weekly_human_review_sample_min": 50
+      }
+    },
+    {
+      "id": "high",
+      "name": "High",
+      "rank": 3,
+      "description": "Influences decisions about people's access to jobs, credit, insurance, housing, education, healthcare or essential services; sensitive data; regulated advice; children or vulnerable users; high-value or autonomous actions affecting customers.",
+      "required_controls": [
+        "GOV-01", "GOV-02", "GOV-03",
+        "EVAL-01", "EVAL-02", "EVAL-03", "EVAL-04",
+        "HUM-03",
+        "TRN-01", "TRN-02",
+        "SEC-01", "SEC-03",
+        "PRV-01", "PRV-02", "PRV-03",
+        "OPS-01", "OPS-02", "OPS-03", "OPS-04", "OPS-05"
+      ],
+      "approvers": ["Product owner", "Engineering lead", "Security lead", "Privacy officer", "Legal counsel", "AI governance board"],
+      "max_autonomy_at_launch": "L3",
+      "recertification_months": 3,
+      "eval_requirements": {
+        "golden_set_min": 300,
+        "pass_rate_min": 0.95,
+        "critical_failures_max": 0,
+        "runs_per_case_min": 3,
+        "adversarial_slice_required": true,
+        "fairness_slices_required": true,
+        "judge_calibration_cases_min": 100,
+        "weekly_human_review_sample_min": 100
+      }
+    },
+    {
+      "id": "prohibited",
+      "name": "Prohibited",
+      "rank": 4,
+      "description": "Practices this organisation does not build or buy. Stop the work; there is no approval path.",
+      "prohibited": true,
+      "required_controls": [],
+      "approvers": [],
+      "max_autonomy_at_launch": null,
+      "recertification_months": null,
+      "eval_requirements": null
+    }
+  ],
+  "questions": [
+    { "id": "customer_facing", "type": "boolean", "text": "Will people outside the organisation see the AI's output or interact with it directly?" },
+    { "id": "external_publication", "type": "boolean", "text": "Will AI-generated content be published externally under the organisation's name (marketing, documentation, social media)?" },
+    { "id": "personal_data", "type": "boolean", "text": "Does the system process personal data beyond business contact details?" },
+    { "id": "sensitive_data", "type": "boolean", "text": "Does it process sensitive data: health, biometric, genetic, financial account, government ID, criminal record, or data about children?" },
+    { "id": "consequential_decisions", "type": "boolean", "text": "Does the output influence decisions about people's access to employment, credit, insurance, housing, education, healthcare, legal or other essential services?" },
+    { "id": "regulated_advice", "type": "boolean", "text": "Does it give or support regulated advice (medical, legal, financial, tax) or run inside a regulated process?" },
+    { "id": "vulnerable_users", "type": "boolean", "text": "Are children or other vulnerable groups likely to be users or subjects?" },
+    { "id": "third_party_model_provider", "type": "boolean", "text": "Will confidential or personal data be sent to an external model provider?" },
+    { "id": "uses_retrieval", "type": "boolean", "text": "Does the system retrieve internal documents or records to ground its answers (RAG)?" },
+    { "id": "takes_actions", "type": "boolean", "text": "Can the system call tools that change state, such as sending messages, updating records, paying or deleting?" },
+    { "id": "irreversible_actions", "type": "boolean", "text": "Can any of those actions be hard or impossible to reverse?" },
+    { "id": "autonomy_level", "type": "enum", "options": ["L0", "L1", "L2", "L3", "L4", "L5"], "text": "What is the highest autonomy level planned (L0 Inform to L5 Autonomous)?" },
+    { "id": "max_financial_impact_per_action", "type": "number", "text": "What is the largest direct financial impact of a single AI output or action, in the reporting currency? Use 0 if none." },
+    {
+      "id": "prohibited_practices",
+      "type": "multiselect",
+      "options": [
+        "manipulation",
+        "exploiting_vulnerabilities",
+        "social_scoring",
+        "workplace_emotion_recognition",
+        "untargeted_facial_scraping",
+        "sensitive_biometric_categorisation",
+        "none"
+      ],
+      "text": "Does the system use any of these practices? Select every one that applies, or 'none'."
+    }
+  ],
+  "rules": [
+    {
+      "id": "P-01",
+      "tier": "prohibited",
+      "when": {
+        "question": "prohibited_practices",
+        "contains_any": [
+          "manipulation",
+          "exploiting_vulnerabilities",
+          "social_scoring",
+          "workplace_emotion_recognition",
+          "untargeted_facial_scraping",
+          "sensitive_biometric_categorisation"
+        ]
+      },
+      "reason": "Uses a practice this organisation prohibits."
+    },
+    { "id": "H-01", "tier": "high", "when": { "question": "consequential_decisions", "equals": true }, "reason": "Influences decisions about people's access to important opportunities or services." },
+    { "id": "H-02", "tier": "high", "when": { "question": "sensitive_data", "equals": true }, "reason": "Processes sensitive data." },
+    { "id": "H-03", "tier": "high", "when": { "question": "regulated_advice", "equals": true }, "reason": "Gives or supports regulated advice, or runs inside a regulated process." },
+    { "id": "H-04", "tier": "high", "when": { "question": "vulnerable_users", "equals": true }, "reason": "Children or vulnerable people are likely users or subjects." },
+    { "id": "H-05", "tier": "high", "when": { "question": "max_financial_impact_per_action", "gte": 1000 }, "reason": "A single output or action can have a direct financial impact of 1,000 or more." },
+    {
+      "id": "H-06",
+      "tier": "high",
+      "when": {
+        "all": [
+          { "question": "autonomy_level", "in": ["L4", "L5"] },
+          { "any": [
+            { "question": "customer_facing", "equals": true },
+            { "question": "irreversible_actions", "equals": true }
+          ] }
+        ]
+      },
+      "reason": "Acts without per-action approval in a way that affects customers or cannot easily be reversed."
+    },
+    { "id": "L-01", "tier": "limited", "when": { "question": "customer_facing", "equals": true }, "reason": "People outside the organisation see the output or interact with the AI." },
+    { "id": "L-02", "tier": "limited", "when": { "question": "external_publication", "equals": true }, "reason": "AI-generated content is published under the organisation's name." },
+    { "id": "L-03", "tier": "limited", "when": { "question": "personal_data", "equals": true }, "reason": "Processes personal data." },
+    { "id": "L-04", "tier": "limited", "when": { "question": "third_party_model_provider", "equals": true }, "reason": "Confidential or personal data is sent to an external model provider." },
+    { "id": "L-05", "tier": "limited", "when": { "question": "irreversible_actions", "equals": true }, "reason": "Can take actions that are hard to reverse." },
+    { "id": "L-06", "tier": "limited", "when": { "question": "autonomy_level", "in": ["L4", "L5"] }, "reason": "Acts without approval of each individual action." }
+  ],
+  "conditional_controls": [
+    { "control": "HUM-01", "when": { "question": "autonomy_level", "in": ["L0", "L1", "L2"] }, "reason": "A human reviews every output at this autonomy level." },
+    { "control": "HUM-02", "when": { "question": "autonomy_level", "equals": "L3" }, "reason": "Every action needs human approval at L3." },
+    { "control": "SEC-02", "when": { "question": "takes_actions", "equals": true }, "reason": "The system can change state through tools." },
+    { "control": "OPS-03", "when": { "question": "takes_actions", "equals": true }, "reason": "Every action must be traceable." },
+    { "control": "PRV-04", "when": { "question": "uses_retrieval", "equals": true }, "reason": "Retrieval must respect document permissions." },
+    { "control": "PRV-01", "when": { "question": "personal_data", "equals": true }, "reason": "Personal data is processed." },
+    { "control": "PRV-03", "when": { "question": "third_party_model_provider", "equals": true }, "reason": "Data is shared with an external model provider." },
+    { "control": "TRN-01", "when": { "any": [
+      { "question": "customer_facing", "equals": true },
+      { "question": "external_publication", "equals": true }
+    ] }, "reason": "People outside the organisation encounter AI output." }
+  ],
+  "controls": [
+    { "id": "GOV-01", "name": "AI inventory registration", "description": "Register the use case in the AI inventory with an accountable owner, tier and status.", "evidence": "Inventory entry ID" },
+    { "id": "GOV-02", "name": "Periodic re-certification", "description": "Repeat the gate review at the tier's cadence and after any material change.", "evidence": "Dated re-certification record" },
+    { "id": "GOV-03", "name": "Approver sign-off", "description": "Every approver role required for the tier signs before launch.", "evidence": "Signed launch readiness review" },
+    { "id": "EVAL-01", "name": "Offline evaluation", "description": "Held-out golden set at the tier's size and pass-rate minimums, with zero critical failures.", "evidence": "Eval report with eval-set version" },
+    { "id": "EVAL-02", "name": "Adversarial and red-team testing", "description": "Prompt injection, jailbreak and abuse testing proportionate to exposure.", "evidence": "Red-team report and fixes" },
+    { "id": "EVAL-03", "name": "Fairness evaluation", "description": "Pass rates compared across relevant user segments, languages and dialects.", "evidence": "Segment-level eval results and accepted gaps" },
+    { "id": "EVAL-04", "name": "Continuous evaluation", "description": "The eval suite runs on every prompt, model, retrieval or tool change and blocks releases below threshold.", "evidence": "CI configuration and recent run" },
+    { "id": "HUM-01", "name": "Human review of every output", "description": "A person checks each output before it is used or sent.", "evidence": "UX flow showing the review step" },
+    { "id": "HUM-02", "name": "Human approval of every action", "description": "Each action is approved by a person before it executes.", "evidence": "Approval flow and audit records" },
+    { "id": "HUM-03", "name": "Sampled production review", "description": "A weekly sample of production outputs is reviewed against the eval rubric.", "evidence": "Review log and scores" },
+    { "id": "TRN-01", "name": "AI disclosure", "description": "People are told when they are interacting with AI or reading AI-generated content.", "evidence": "UI copy and screenshots" },
+    { "id": "TRN-02", "name": "Explanation and contestability", "description": "Affected people can get an explanation and ask for a human review of the outcome.", "evidence": "Appeal process and response times" },
+    { "id": "SEC-01", "name": "Prompt-injection defences", "description": "Retrieved, tool and user-supplied content is treated as untrusted data and cannot change goals or permissions.", "evidence": "Design review and injection test results" },
+    { "id": "SEC-02", "name": "Least-privilege actions", "description": "Tools are scoped to the task, with per-action and daily limits and confirmation for irreversible actions.", "evidence": "Tool permission matrix and limits configuration" },
+    { "id": "SEC-03", "name": "Output handling", "description": "Model output is sanitised before it is rendered, executed or passed to another system.", "evidence": "Code review and tests" },
+    { "id": "PRV-01", "name": "Privacy review", "description": "Privacy review or data protection impact assessment completed.", "evidence": "Signed review or DPIA" },
+    { "id": "PRV-02", "name": "Data minimisation and retention", "description": "Only necessary data is sent; personal data is redacted from logs; retention limits are enforced.", "evidence": "Data flow diagram and retention settings" },
+    { "id": "PRV-03", "name": "Vendor data terms", "description": "Model vendor terms reviewed for training use, retention and residency.", "evidence": "Vendor assessment record" },
+    { "id": "PRV-04", "name": "Permission-aware retrieval", "description": "Users can only retrieve content they are entitled to see, enforced at query time.", "evidence": "Access-control tests" },
+    { "id": "OPS-01", "name": "Monitoring and alerting", "description": "Quality, safety, cost and latency are monitored with alert thresholds and owners.", "evidence": "Dashboard and alert configuration" },
+    { "id": "OPS-02", "name": "Kill switch and fallback", "description": "The AI path can be switched off quickly, routing work to a tested non-AI fallback.", "evidence": "Test record of the last switch-off" },
+    { "id": "OPS-03", "name": "Audit logging", "description": "Inputs, outputs, decisions and approvals are logged with retention per policy.", "evidence": "Log schema and retention settings" },
+    { "id": "OPS-04", "name": "Incident runbook", "description": "Runbook with AI-specific severities, containment steps and notification contacts.", "evidence": "Runbook link and rehearsal date" },
+    { "id": "OPS-05", "name": "Model change management", "description": "Exact model versions are pinned; any change is evaluated and rolled out like a release.", "evidence": "Configuration and change log" }
+  ],
+  "autonomy_promotion": {
+    "min_reviewed_actions": 500,
+    "max_override_rate": 0.02,
+    "min_weeks_at_level": 4,
+    "requires_zero_critical_incidents": true,
+    "requires_reversal_path": true
+  },
+  "incident_severities": [
+    { "id": "SEV1", "description": "Harmful, unlawful or data-exposing output reached users, or an unauthorised action executed.", "response": "Contain immediately with the kill switch or fallback; notify privacy, legal and security owners." },
+    { "id": "SEV2", "description": "Systematic quality failure affecting many users, with no confirmed harm.", "response": "Fix within the agreed service level; consider pausing the rollout." },
+    { "id": "SEV3", "description": "Isolated failure or near miss.", "response": "Log it, add the case to the eval set, fix in the normal cycle." }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "cross-rag-vs-finetune",
+  "title": "RAG or fine-tuning for fast-changing documentation",
+  "gate": "cross-cutting",
+  "tags": ["approach", "model-selection"],
+  "prompt": "Should we fine-tune a model or use RAG for our product-documentation Q&A bot? We have about 3,000 help articles that change weekly, and customers ask questions in English, German and Japanese.",
+  "criteria": [
+    { "id": "C1", "text": "Recommends retrieval (RAG) rather than fine-tuning for weekly-changing knowledge, and explains why." },
+    { "id": "C2", "text": "Recommends starting with the simplest approach that works (a prompted model plus retrieval) and adding complexity such as fine-tuning only if evaluations show it is needed." },
+    { "id": "C3", "text": "Says the decision should be validated on an evaluation set covering all three languages." },
+    { "id": "C4", "text": "Addresses retrieval-specific risks: stale or wrong documents, citations, and answering 'not found' when sources do not support an answer." },
+    { "id": "C5", "text": "Mentions comparing options on cost per completed task or latency, or recording the decision with triggers for re-evaluation." }
+  ],
+  "expected_reads": ["references/approach-and-model-selection.md"]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "aipg",
+  "description": "AI Product Governance plugins",
+  "owner": {
+    "name": "joydeep195",
+    "url": "https://github.com/joydeep195"
+  },
+  "plugins": [
+    {
+      "name": "ai-product-governance",
+      "source": "./",
+      "description": "Enterprise AI product governance: AI fit checks, unit economics, eval plans, policy-based risk tiers and controls, launch readiness and regression diagnosis."
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "ai-product-governance": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/joydeep195/ai-product-governance",
+        "aipg",
+        "serve"
+      ]
+    }
+  }
+}

@@ -1,0 +1,60 @@
+name: Evals
+
+# Model evals call paid APIs, so they never run automatically on every push. Run them manually,
+# on a schedule, or by labelling a pull request `run-evals`. API keys live in the protected
+# `evals` environment; pull requests from forks never receive them.
+on:
+  workflow_dispatch:
+    inputs:
+      trials:
+        description: Trials per subject x scenario x arm
+        default: "1"
+      max_cost_usd:
+        description: Stop starting new trials once spend reaches this (USD)
+        default: "15"
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC: catches model or provider drift
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+jobs:
+  evals:
+    if: github.event_name != 'pull_request' || github.event.label.name == 'run-evals'
+    runs-on: ubuntu-latest
+    environment: evals
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: python -m pip install -e ".[evals]"
+      - name: Run evals
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TRIALS: ${{ inputs.trials || '1' }}
+          MAX_COST_USD: ${{ inputs.max_cost_usd || '15' }}
+        run: |
+          args=(--trials "$TRIALS" --max-cost-usd "$MAX_COST_USD" --out evals/results/ci)
+          if [ -f evals/baselines/latest.json ]; then
+            args+=(--compare evals/baselines/latest.json)
+          fi
+          aipg eval "${args[@]}"
+      - name: Publish the report to the job summary
+        if: always()
+        run: |
+          if [ -f evals/results/ci/report.md ]; then
+            cat evals/results/ci/report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-results
+          path: evals/results/ci/
+          if-no-files-found: ignore

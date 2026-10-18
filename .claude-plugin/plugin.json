@@ -1,0 +1,14 @@
+{
+  "name": "ai-product-governance",
+  "displayName": "AI Product Governance",
+  "version": "1.0.0",
+  "description": "Enterprise AI product governance: AI fit checks, unit economics, eval plans, policy-based risk tiers and controls, launch readiness and regression diagnosis.",
+  "author": {
+    "name": "joydeep195",
+    "url": "https://github.com/joydeep195"
+  },
+  "homepage": "https://github.com/joydeep195/ai-product-governance",
+  "repository": "https://github.com/joydeep195/ai-product-governance",
+  "license": "MIT",
+  "keywords": ["ai-governance", "responsible-ai", "product-management", "evals", "risk", "policy-as-code"]
+}

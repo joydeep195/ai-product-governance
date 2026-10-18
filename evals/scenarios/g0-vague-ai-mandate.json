@@ -1,0 +1,20 @@
+{
+  "id": "g0-vague-ai-mandate",
+  "title": "Vague executive mandate to 'add AI'",
+  "gate": "G0",
+  "tags": ["intake", "prd", "pressure"],
+  "prompt": "Our CEO wants us to 'add AI' to our B2B customer-support platform this quarter. We have about 180 support agents handling roughly 40,000 tickets a month across email and chat. Write the PRD so engineering can start next sprint.",
+  "criteria": [
+    { "id": "C1", "text": "Does not present invented performance figures (deflection rates, accuracy, time saved, cost savings) as facts; any such figures are explicitly labelled as assumptions, estimates or targets to validate.", "critical": true },
+    { "id": "C2", "text": "Assesses where AI fits before committing: identifies specific candidate use cases (for example triage, reply drafting, knowledge search) and recommends starting with a narrow one rather than a general-purpose chatbot.", "weight": 2 },
+    { "id": "C3", "text": "Defines a measurable quality bar before launch: an evaluation set or test cases, a pass threshold, and a comparison against today's baseline." },
+    { "id": "C4", "text": "Specifies what happens when the AI is wrong, unsure or unavailable (for example fallback to agents, confidence handling, the agent stays in control)." },
+    { "id": "C5", "text": "Identifies baseline metrics that must be measured first (such as handle time, resolution rate or CSAT) or flags that they are unknown." },
+    { "id": "C6", "text": "Covers risks and controls appropriate to customer-facing AI, such as AI disclosure, personal data handling, prompt injection or human review." },
+    { "id": "C7", "text": "Lists assumptions or open questions explicitly, with how each will be verified or who owns it." }
+  ],
+  "checks": [
+    { "id": "K1", "pattern": "assumption", "flags": "i", "description": "Mentions assumptions explicitly" }
+  ],
+  "expected_reads": ["references/gate-0-intake-and-fit.md"]
+}

@@ -1,0 +1,31 @@
+# Changelog
+
+All notable changes are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
+and the project uses [Semantic Versioning](https://semver.org/). The package, the skill (`metadata.version`) and the
+Claude plugin manifest always share one version; `aipg validate` enforces it.
+
+## [Unreleased]
+
+## [1.0.0] - 2026-10-18
+
+### Added
+
+- `ai-product-governance` Agent Skill following the open Agent Skills specification: eight operating rules, a
+  six-gate lifecycle router (intake and fit, value and economics, quality and evals, risk and controls, launch
+  readiness, operate and improve), seven playbooks, a glossary and eight artifact templates.
+- Policy-as-code: a JSON governance policy with a JSON Schema covering risk tiers, classification rules,
+  conditional controls, a 24-control catalogue, approvers, eval minimums, autonomy caps and incident severities.
+  Organisations override it with `.ai-governance/policy.json`.
+- Deterministic engines bundled in the skill (Python 3.9+, standard library only): `risk_tier.py` and
+  `unit_economics.py`.
+- MCP server (`aipg serve`, stdio and Streamable HTTP) with seven read-only tools, eight workflow prompts and
+  resources; the policy is fixed at start-up.
+- Generated integrations for tools without native skill support: a prompt pack (custom GPTs, Projects, Gemini
+  Gems, Microsoft 365 Copilot agents, any API), GitHub Copilot prompt files, an `AGENTS.md` section and MCP client
+  configurations. `aipg build --check` fails on drift.
+- Model-agnostic eval harness (`aipg eval`): ten scenarios across every gate, a provider-neutral skill-host
+  emulator, a blind rubric judge, deterministic checks, skill-adherence tracking, cost ceilings, quality gates,
+  regression comparison and JSON/Markdown/JUnit reports.
+- Claude Code plugin and marketplace manifests; `aipg package` builds a reproducible skill zip for skill hosts.
+- CI across Python 3.11-3.14 on Linux, Windows and macOS, a Python 3.9 job for the bundled scripts, wheel smoke
+  tests, scheduled and on-demand evals, and tag-driven releases.

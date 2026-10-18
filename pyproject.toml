@@ -1,0 +1,92 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ai-product-governance"
+dynamic = ["version"]
+description = "Enterprise AI product governance for any AI assistant: an open Agent Skill, an MCP server and a policy-as-code toolkit."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+authors = [{ name = "joydeep195" }]
+keywords = ["ai-governance", "agent-skills", "mcp", "llm", "responsible-ai", "product-management", "evals", "policy-as-code"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Information Technology",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Software Development :: Quality Assurance",
+]
+dependencies = [
+  "jsonschema>=4.20",
+  "mcp>=2.0,<3",
+  "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+evals = ["anthropic>=1.0", "openai>=2.0"]
+dev = [
+  "anthropic>=1.0",
+  "mypy>=1.10",
+  "openai>=2.0",
+  "pytest>=8.0",
+  "ruff>=0.6",
+  "types-jsonschema",
+  "types-PyYAML",
+]
+
+[project.scripts]
+aipg = "ai_product_governance.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/joydeep195/ai-product-governance"
+Documentation = "https://github.com/joydeep195/ai-product-governance/tree/main/docs"
+Issues = "https://github.com/joydeep195/ai-product-governance/issues"
+Changelog = "https://github.com/joydeep195/ai-product-governance/blob/main/CHANGELOG.md"
+
+[tool.hatch.version]
+path = "src/ai_product_governance/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ai_product_governance"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"skills/ai-product-governance" = "ai_product_governance/_bundle/ai-product-governance"
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "skills", "evals", "tests", "README.md", "LICENSE", "CHANGELOG.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = ["integrations"]
+
+[tool.ruff.per-file-target-version]
+# Bundled scripts must stay compatible with Python 3.9 sandboxes (e.g. code interpreters).
+"skills/**/scripts/*.py" = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "BLE", "S", "UP", "SIM", "RUF"]
+ignore = ["E501"]  # line length is enforced by `ruff format`; long prose strings are allowed
+
+[tool.ruff.lint.per-file-ignores]
+"skills/**/scripts/*.py" = ["UP"]
+"tests/**" = ["S101", "S314", "S603"]  # asserts, parsing our own JUnit output, subprocess calls
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+mypy_path = "src"
+packages = ["ai_product_governance"]
+warn_unused_ignores = true

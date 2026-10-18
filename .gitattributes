@@ -1,0 +1,5 @@
+# Normalise line endings so generated files are byte-identical on every OS
+# (`aipg build --check` compares exact content).
+* text=auto eol=lf
+*.zip binary
+*.png binary

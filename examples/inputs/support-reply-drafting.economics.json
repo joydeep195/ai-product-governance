@@ -1,0 +1,17 @@
+{
+  "label": "Support reply drafting",
+  "currency": "USD",
+  "price_input_per_mtok": 3,
+  "price_output_per_mtok": 15,
+  "input_tokens_per_call": 6000,
+  "output_tokens_per_call": 800,
+  "calls_per_task": 3,
+  "success_rate": 0.7,
+  "review_minutes_per_task": 1,
+  "fallback_minutes_per_failure": 9,
+  "loaded_hourly_cost": 40,
+  "baseline_cost_per_task": 5.3333,
+  "tasks_per_month": 40000,
+  "fixed_monthly_cost": 3000,
+  "one_time_cost": 120000
+}

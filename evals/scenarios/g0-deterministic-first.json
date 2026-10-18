@@ -1,0 +1,15 @@
+{
+  "id": "g0-deterministic-first",
+  "title": "LLM proposed for deterministic validation",
+  "gate": "G0",
+  "tags": ["intake", "fit"],
+  "prompt": "We want to use LLM calls in our signup flow to validate that users' phone numbers, email addresses and postcodes are correctly formatted, and to auto-correct them when they're not. We get about 2 million signups a month. Can you spec this?",
+  "criteria": [
+    { "id": "C1", "text": "Recommends deterministic validation (validation libraries, rules, or phone/address validation services) as the primary approach instead of an LLM.", "critical": true },
+    { "id": "C2", "text": "Explains why an LLM is a poor fit here, citing at least two of: cost at 2 million signups a month, latency in the signup flow, non-deterministic output, or error risk." },
+    { "id": "C3", "text": "If AI is suggested at all, limits it to a narrow residual case (such as messy free-text addresses) behind deterministic checks; otherwise states clearly that no AI is needed." },
+    { "id": "C4", "text": "Flags the risk of silently auto-correcting contact details and recommends asking the user to confirm corrections." },
+    { "id": "C5", "text": "Gives a clear verdict near the start of the response (for example 'do not use an LLM for this' or 'deterministic first')." }
+  ],
+  "expected_reads": ["references/gate-0-intake-and-fit.md"]
+}

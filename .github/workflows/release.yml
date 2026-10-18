@@ -1,0 +1,33 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: python -m pip install -e ".[dev]" build
+      - name: The tag must match the package, skill and plugin versions
+        run: |
+          version="$(python -c 'import ai_product_governance as m; print(m.__version__)')"
+          test "${GITHUB_REF_NAME#v}" = "$version" || { echo "Tag $GITHUB_REF_NAME does not match version $version"; exit 1; }
+          aipg validate --strict
+          aipg build --check
+      - run: python -m pytest -q
+      - name: Build the wheel, sdist and skill zip
+        run: |
+          python -m build
+          aipg package --out dist
+      - name: Publish the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --title "$GITHUB_REF_NAME" --generate-notes --verify-tag

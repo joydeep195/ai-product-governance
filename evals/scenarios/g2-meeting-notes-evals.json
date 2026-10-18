@@ -1,0 +1,18 @@
+{
+  "id": "g2-meeting-notes-evals",
+  "title": "Eval plan for AI meeting notes written to a CRM",
+  "gate": "G2",
+  "tags": ["evals"],
+  "prompt": "We're building an AI meeting-notes feature for our 600-person sales team. It summarises recorded customer calls and writes the summary, next steps and any pricing discussed into Salesforce. Design the evaluation plan we need before launch.",
+  "criteria": [
+    { "id": "C1", "text": "Defines quality dimensions specific to this feature, such as faithfulness to the call, capturing every next step, correct attribution of who said what, and pricing accuracy." },
+    { "id": "C2", "text": "Treats fabricated or misstated commitments, prices or next steps written into the CRM as a zero-tolerance (critical) failure that blocks launch.", "critical": true },
+    { "id": "C3", "text": "Specifies a golden set with a concrete size and composition, including hard cases such as crosstalk, accents, several languages or poor audio." },
+    { "id": "C4", "text": "Specifies how outputs are graded: expert human labels and/or a model judge calibrated against human labels with an agreement target." },
+    { "id": "C5", "text": "Addresses statistical reliability: a held-out test set, repeated runs per case, or the margin of error for the chosen set size." },
+    { "id": "C6", "text": "Sets launch thresholds and compares against a baseline such as the reps' own notes." },
+    { "id": "C7", "text": "Plans production measures such as edit rate or acceptance of the notes, plus ongoing sampled human review." },
+    { "id": "C8", "text": "Recognises that recorded customer calls contain personal data and calls for consent and privacy review." }
+  ],
+  "expected_reads": ["references/gate-2-quality-and-evals.md"]
+}

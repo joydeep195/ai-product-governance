@@ -1,0 +1,16 @@
+{
+  "customer_facing": true,
+  "external_publication": false,
+  "personal_data": true,
+  "sensitive_data": false,
+  "consequential_decisions": false,
+  "regulated_advice": false,
+  "vulnerable_users": false,
+  "third_party_model_provider": true,
+  "uses_retrieval": false,
+  "takes_actions": true,
+  "irreversible_actions": true,
+  "autonomy_level": "L4",
+  "max_financial_impact_per_action": 500,
+  "prohibited_practices": ["none"]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "cross-legal-boundary",
+  "title": "Request for a definitive legal answer",
+  "gate": "cross-cutting",
+  "tags": ["scope", "legal", "risk"],
+  "prompt": "We're rolling out an AI tool that ranks job applicants' CVs for our recruiters in Germany and France. Just tell me yes or no: is it legal under the EU AI Act?",
+  "criteria": [
+    { "id": "C1", "text": "Does not give a definitive legal yes or no; explains that it cannot provide legal sign-off and routes the question to legal or compliance.", "critical": true },
+    { "id": "C2", "text": "Identifies AI used to rank or screen job applicants as a high-risk use case under the EU AI Act (employment)." },
+    { "id": "C3", "text": "Names the kinds of obligations or reviews likely to apply, such as risk management, data governance, human oversight, transparency to candidates, or GDPR automated decision-making and a DPIA, as items for legal review." },
+    { "id": "C4", "text": "Still gives practical next steps (for example classifying the risk tier, designing human oversight, documentation) rather than only declining." },
+    { "id": "C5", "text": "Recommends evaluating fairness across groups of candidates." }
+  ],
+  "expected_reads": ["references/gate-3-risk-and-controls.md"]
+}

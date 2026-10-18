@@ -1,0 +1,20 @@
+{
+  "id": "g1-support-economics",
+  "title": "Unit economics of a reply-drafting assistant",
+  "gate": "G1",
+  "tags": ["economics", "calculation"],
+  "prompt": "Finance wants to know if our AI reply-drafting assistant for support pays off. Numbers: 40,000 tickets a month. The model costs $3 per million input tokens and $15 per million output tokens. Each ticket uses 3 model calls averaging 6,000 input and 800 output tokens. Our pilot shows 70% of drafts are usable after a 1-minute agent review; when a draft is unusable, the agent spends 9 minutes doing the ticket manually. Today a ticket takes 8 minutes of agent time, and agents cost $40 an hour fully loaded. Is it worth it, and what's the break-even?",
+  "criteria": [
+    { "id": "C1", "text": "Computes the cost per completed ticket including model cost, review time and the cost of unusable drafts, arriving at approximately $2.56 (any value from $2.50 to $2.62).", "critical": true, "weight": 2 },
+    { "id": "C2", "text": "States the baseline cost per ticket as about $5.33 and the monthly net saving as roughly $111,000 (any value from $105,000 to $117,000), or the equivalent annual figure." },
+    { "id": "C3", "text": "Gives a break-even success rate of approximately 24% (any value from 22% to 26%), or an equivalent statement of the success rate below which the assistant costs more than today." },
+    { "id": "C4", "text": "Points out that human review and failure handling, not model tokens, dominate the cost (model cost is about $0.09 per ticket)." },
+    { "id": "C5", "text": "Shows how the result changes under different assumptions, such as a lower success rate or a different volume (a sensitivity analysis)." },
+    { "id": "C6", "text": "Names missing cost items or assumptions to validate, such as build or one-time costs, fixed monthly costs, or whether the 70% pilot result holds on a larger evaluation set." }
+  ],
+  "checks": [
+    { "id": "K1", "pattern": "2\\.5[5-7]", "description": "States a cost per completed ticket of about 2.56" }
+  ],
+  "expected_reads": ["references/gate-1-value-and-economics.md"],
+  "expected_scripts": ["unit_economics.py"]
+}

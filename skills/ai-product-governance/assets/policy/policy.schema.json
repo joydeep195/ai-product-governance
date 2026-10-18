@@ -1,0 +1,207 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/joydeep195/ai-product-governance/policy.schema.json",
+  "title": "AI product governance policy",
+  "description": "Machine-readable governance policy: risk tiers, classification rules, controls, approvers and evaluation minimums.",
+  "type": "object",
+  "required": ["policy_id", "version", "name", "default_tier", "autonomy_levels", "tiers", "questions", "rules", "controls"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "policy_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "name": { "type": "string", "minLength": 1 },
+    "owner": { "type": "string" },
+    "description": { "type": "string" },
+    "default_tier": { "type": "string" },
+    "autonomy_levels": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "name"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^L\\d$" },
+          "name": { "type": "string" },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "tiers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "rank", "required_controls", "approvers", "max_autonomy_at_launch", "recertification_months", "eval_requirements"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
+          "name": { "type": "string" },
+          "rank": { "type": "integer", "minimum": 1 },
+          "description": { "type": "string" },
+          "prohibited": { "type": "boolean", "description": "True for tiers that stop the work outright; no controls or approvals apply." },
+          "required_controls": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+          "approvers": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+          "max_autonomy_at_launch": { "type": ["string", "null"], "pattern": "^L\\d$" },
+          "recertification_months": { "type": ["integer", "null"], "minimum": 1 },
+          "eval_requirements": {
+            "oneOf": [
+              { "type": "null" },
+              {
+                "type": "object",
+                "required": ["golden_set_min", "pass_rate_min", "critical_failures_max"],
+                "additionalProperties": false,
+                "properties": {
+                  "golden_set_min": { "type": "integer", "minimum": 0 },
+                  "pass_rate_min": { "type": "number", "minimum": 0, "maximum": 1 },
+                  "critical_failures_max": { "type": "integer", "minimum": 0 },
+                  "runs_per_case_min": { "type": "integer", "minimum": 1 },
+                  "adversarial_slice_required": { "type": "boolean" },
+                  "fairness_slices_required": { "type": "boolean" },
+                  "judge_calibration_cases_min": { "type": "integer", "minimum": 0 },
+                  "weekly_human_review_sample_min": { "type": "integer", "minimum": 0 }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    "questions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "text"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+          "type": { "enum": ["boolean", "number", "enum", "multiselect"] },
+          "text": { "type": "string", "minLength": 1 },
+          "options": { "type": "array", "items": { "type": "string" }, "minItems": 1, "uniqueItems": true }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "type": { "enum": ["enum", "multiselect"] } } },
+            "then": { "required": ["options"] }
+          }
+        ]
+      }
+    },
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "tier", "when", "reason"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "tier": { "type": "string" },
+          "when": { "$ref": "#/$defs/condition" },
+          "reason": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "conditional_controls": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["control", "when", "reason"],
+        "additionalProperties": false,
+        "properties": {
+          "control": { "type": "string" },
+          "when": { "$ref": "#/$defs/condition" },
+          "reason": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "controls": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "description", "evidence"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[A-Z]+-\\d{2}$" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "evidence": { "type": "string" }
+        }
+      }
+    },
+    "autonomy_promotion": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "min_reviewed_actions": { "type": "integer", "minimum": 0 },
+        "max_override_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "min_weeks_at_level": { "type": "integer", "minimum": 0 },
+        "requires_zero_critical_incidents": { "type": "boolean" },
+        "requires_reversal_path": { "type": "boolean" }
+      }
+    },
+    "incident_severities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "description", "response"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "description": { "type": "string" },
+          "response": { "type": "string" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "condition": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["question", "equals"],
+          "additionalProperties": false,
+          "properties": { "question": { "type": "string" }, "equals": { "type": ["boolean", "number", "string"] } }
+        },
+        {
+          "type": "object",
+          "required": ["question", "in"],
+          "additionalProperties": false,
+          "properties": { "question": { "type": "string" }, "in": { "type": "array", "minItems": 1 } }
+        },
+        {
+          "type": "object",
+          "required": ["question", "contains_any"],
+          "additionalProperties": false,
+          "properties": { "question": { "type": "string" }, "contains_any": { "type": "array", "minItems": 1, "items": { "type": "string" } } }
+        },
+        {
+          "type": "object",
+          "required": ["question", "gte"],
+          "additionalProperties": false,
+          "properties": { "question": { "type": "string" }, "gte": { "type": "number" } }
+        },
+        {
+          "type": "object",
+          "required": ["question", "lte"],
+          "additionalProperties": false,
+          "properties": { "question": { "type": "string" }, "lte": { "type": "number" } }
+        },
+        {
+          "type": "object",
+          "required": ["all"],
+          "additionalProperties": false,
+          "properties": { "all": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/condition" } } }
+        },
+        {
+          "type": "object",
+          "required": ["any"],
+          "additionalProperties": false,
+          "properties": { "any": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/condition" } } }
+        }
+      ]
+    }
+  }
+}

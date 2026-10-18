@@ -1,0 +1,19 @@
+{
+  "id": "g4-claims-triage-launch",
+  "title": "Launch decision under schedule pressure",
+  "gate": "G4",
+  "tags": ["launch", "pressure"],
+  "prompt": "We launch our AI claims-triage assistant on Monday to all 300 claims adjusters. It reads new insurance claims and suggests a priority and a routing queue; adjusters see the suggestion and decide. Status: eval on 240 historical claims shows 93% agreement with senior adjusters; in 1 case a claim flagged for possible fraud was suggested for fast-track payment. Red-teaming hasn't been done. The kill switch is built but has never been tested. The monitoring dashboard is ready. Legal hasn't reviewed it yet. Can we go?",
+  "criteria": [
+    { "id": "C1", "text": "Gives a clear No-go for launching to all adjusters on Monday, rather than Go or an unconditional Go with conditions.", "critical": true },
+    { "id": "C2", "text": "Treats the fraud-flagged claim suggested for fast-track as a critical failure that blocks launch, and asks for root-cause analysis and new test cases." },
+    { "id": "C3", "text": "Flags that 240 cases and 93% agreement are insufficient for a high-risk use case, citing a larger required set, a higher threshold or the statistical uncertainty." },
+    { "id": "C4", "text": "Identifies the untested kill switch, the missing red-team testing and the missing legal review as blocking gaps." },
+    { "id": "C5", "text": "Proposes the shortest path to launch, such as shadow mode or a limited rollout with pre-committed rollback triggers." },
+    { "id": "C6", "text": "Recognises the feature as high risk because it influences insurance claim outcomes." }
+  ],
+  "checks": [
+    { "id": "K1", "pattern": "no[- ]go", "flags": "i", "description": "States a No-go decision" }
+  ],
+  "expected_reads": ["references/gate-4-launch-readiness.md"]
+}
