@@ -2,8 +2,9 @@
 
 ## Design goals
 
-1. **One governance method, every AI tool.** The same rules, gates, policy and calculations whether someone works
-   in ChatGPT, GitHub Copilot, Claude, Cursor, Gemini or a custom app.
+1. **One governance method, every AI tool, and one tool is enough.** The same rules, gates, policy and
+   calculations whether someone works in ChatGPT, GitHub Copilot, Claude, Cursor, Gemini or a custom app, with no
+   feature requiring a second tool, a second sign-in or an API key.
 2. **Standards first.** Build on open standards (Agent Skills, MCP, JSON Schema) rather than any one vendor's
    format, so portability is the default and adapters are the exception.
 3. **Judgement in prose, arithmetic in code.** Models handle reasoning and writing; deterministic engines handle
@@ -48,7 +49,7 @@ flowchart LR
 | Policy (`assets/policy/`) | Tiers, rules, controls, approvers, eval minimums as validated data | [ADR 0002](adr/0002-policy-as-code.md) |
 | Adapter generator (`adapters.py`) | Renders tool-specific integrations; CI rejects drift | [ADR 0006](adr/0006-generated-integrations.md) |
 | MCP server (`mcp_server.py`) | Read-only tools, prompts and resources; central policy enforcement | [ADR 0004](adr/0004-mcp-for-central-enforcement.md) |
-| Eval harness (`evals/`) | Same scenarios across models, with and without the skill | [ADR 0005](adr/0005-model-agnostic-evals.md) |
+| Eval harness (`evals/`) | Same scenarios with and without the skill, on whichever single AI tool the user has | [ADR 0005](adr/0005-model-agnostic-evals.md), [ADR 0007](adr/0007-one-tool-is-enough.md) |
 | Validator (`validate.py`) | Agent Skills spec, schema, links, version consistency, size budgets | — |
 
 ## How a request flows (skill-native tools)

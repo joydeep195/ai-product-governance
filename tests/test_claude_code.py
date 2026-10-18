@@ -208,7 +208,7 @@ def test_end_to_end_eval_with_claude_code_subject_and_judge(skill: Skill, repo: 
         "effort": "high",
     }
     report = render_markdown(manifest, outcome.trials, cells, arms, evaluate_gates(arms, config.gates), [], 0.24)
-    assert "used a Claude login" in report and "activated the skill" in report
+    assert "own sign-in" in report and "activated the skill" in report
 
 
 def test_judge_errors_surface_as_provider_errors(tmp_path: Path) -> None:

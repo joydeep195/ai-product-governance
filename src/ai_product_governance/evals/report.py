@@ -61,18 +61,28 @@ def render_markdown(
 ) -> str:
     cost = "n/a" if total_cost is None else f"${total_cost:,.2f}"
     verdict = "PASS" if gates and all(g.passed for g in gates) else ("FAIL" if gates else "NO GATES EVALUATED")
+    subjects = manifest.get("subjects", [])
+    judges = list(manifest.get("judges", {}).values()) or [manifest.get("judge", {})]
+    judge_models = sorted({str(j.get("model", "n/a")) for j in judges if j})
     lines = [
         f"# Eval report {manifest['run_id']}",
         "",
-        f"**Gates: {verdict}** | skill v{manifest['skill_version']} | judge {manifest['judge']['model']} | "
+        f"**Gates: {verdict}** | skill v{manifest['skill_version']} | judged by {', '.join(judge_models) or 'n/a'} | "
         f"{manifest['trials']} trial(s) per cell | cost {cost}",
         "",
     ]
-    models = [*manifest.get("subjects", []), manifest.get("judge", {})]
-    if any(m.get("provider") == "claude-code" for m in models):
+    models = [*subjects, *judges]
+    if any(m.get("provider") in ("claude-code", "agent-cli") for m in models):
         lines += [
-            "> Claude Code runs used a Claude login: their costs are Claude Code's API-equivalent estimates. "
-            "On a Claude subscription they count against plan usage limits instead of being billed per token.",
+            "> Agent CLI runs used the tool's own sign-in. Costs shown for Claude Code are its API-equivalent "
+            "estimates and other agent CLIs report none; on a subscription these runs count against plan usage "
+            "limits instead of being billed per token.",
+            "",
+        ]
+    if any(s.get("id") and judges and s.get("model") == j.get("model") for s, j in zip(subjects, judges, strict=False)):
+        lines += [
+            "> Each model graded its own answers (blind to which arm produced them), so one AI tool is enough. "
+            "Both arms share the same judge, so the with-skill vs baseline difference stays comparable.",
             "",
         ]
     lines += [

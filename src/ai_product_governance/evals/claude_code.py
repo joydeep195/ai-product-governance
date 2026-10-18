@@ -78,6 +78,8 @@ def _version_key(name: str) -> tuple[int, ...]:
 
 
 class ClaudeCodeProvider:
+    reports_tool_calls = True  # stream-json exposes every tool call, so skill adherence can be measured
+
     def __init__(self, spec: ModelSpec) -> None:
         params = spec.params
         command = params.get("command")

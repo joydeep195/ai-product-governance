@@ -110,6 +110,12 @@ def _cmd_eval(args: argparse.Namespace) -> int:
     return run_from_args(args)
 
 
+def _cmd_eval_kit(args: argparse.Namespace) -> int:
+    from ai_product_governance.evals.cli import run_kit_from_args
+
+    return run_kit_from_args(args)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="aipg", description="AI Product Governance toolkit")
     parser.add_argument("--version", action="version", version=f"aipg {__version__}")
@@ -151,11 +157,15 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--policy", metavar="FILE", help="policy to enforce (default: $AIPG_POLICY, workspace, bundled)")
     p.set_defaults(func=_cmd_serve)
 
-    p = sub.add_parser("eval", help="run the model-agnostic eval suite (calls model APIs)")
-    from ai_product_governance.evals.cli import add_arguments
+    from ai_product_governance.evals.cli import add_arguments, add_kit_arguments
 
+    p = sub.add_parser("eval", help="run the evals with whichever AI tool you have (auto-detected)")
     add_arguments(p)
     p.set_defaults(func=_cmd_eval)
+
+    p = sub.add_parser("eval-kit", help="run the evals by copy and paste with any chat tool")
+    add_kit_arguments(p)
+    p.set_defaults(func=_cmd_eval_kit)
     return parser
 
 

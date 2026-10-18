@@ -35,7 +35,8 @@ def scenarios(repo: Path) -> list[Scenario]:
 
 
 def test_config_and_scenarios_load(config: EvalConfig, scenarios: list[Scenario]) -> None:
-    assert config.judge.model == "claude-opus-5-5"
+    assert config.judge_use == "subject", "one tool must be enough: the subject grades itself by default"
+    assert config.models[0].id == "claude-code"
     assert len(scenarios) >= 10
     gates = {s.gate for s in scenarios}
     assert {"G0", "G1", "G2", "G3", "G4", "G5"} <= gates, "every lifecycle gate needs at least one scenario"
@@ -253,7 +254,7 @@ def test_provider_errors_become_failed_trials(config: EvalConfig, skill: Skill) 
 
 
 def test_dry_run_estimate_is_positive(config: EvalConfig, skill: Skill, scenarios: list[Scenario]) -> None:
-    jobs = plan_jobs(config, [config.subjects[0]], scenarios, ["with-skill", "baseline"], trials=1)
+    jobs = plan_jobs(config, [config.models[0]], scenarios, ["with-skill", "baseline"], trials=1)
     estimate, detail = estimate_cost(config, skill, jobs)
     assert estimate is not None and estimate > 0 and detail["jobs"] == len(jobs)
     unpriced = plan_jobs(config, [ModelSpec("u", "openai", "unknown-model")], scenarios[:1], ["baseline"], 1)

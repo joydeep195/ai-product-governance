@@ -14,6 +14,8 @@ Security tab. Do not open a public issue. You will get an acknowledgement within
 | MCP server over Streamable HTTP | Network-reachable when deployed remotely | No built-in authentication: deploy behind a gateway that terminates TLS and authenticates users, and do not expose it to the internet directly |
 | Eval harness (API subjects) | Executes model-chosen tool calls | File reads are confined to the skill directory; only two allow-listed scripts can run, with an argument list (no shell), a timeout and an empty working directory |
 | Eval harness (`claude-code` subject) | Claude Code acts in a workspace with your login | A throwaway workspace per run; personal settings, plugins and hooks excluded; `dontAsk` permissions deny everything except Python (for the calculators) in the with-skill arm, and no tools at all in the baseline arm or the judge; API keys and host-session variables are stripped from the child environment |
+| Eval harness (other agent CLIs) | Codex, Gemini CLI, Copilot CLI or Cursor act with your sign-in | A throwaway workspace per run with only the skill in it; Codex runs read-only with user config ignored; the other tools' own permission defaults apply, so review a profile before enabling it in CI |
+| Manual eval kit | Text you paste from your AI tool | Parsed as data only (JSON extraction); nothing pasted is executed |
 | Generated integrations | Copied into other repositories | Plain Markdown, JSON and TOML; contain no secrets |
 
 ## Supply chain

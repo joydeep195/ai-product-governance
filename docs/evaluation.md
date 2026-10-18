@@ -10,57 +10,93 @@ harness measures that claim on any model, the way Gate 2 of the skill asks produ
 | Scenarios | 10 realistic requests across every gate (`evals/scenarios/*.json`) | Each targets a known failure mode: fabricated numbers, AI where rules suffice, launch pressure, autonomous money movement, premature model switching, legal overreach |
 | Arms | **with-skill** vs **baseline** | Isolates what the skill contributes |
 | Baseline | The same model with a strong expert persona prompt, no skill | A fair control: the skill must beat a good prompt, not an empty one |
-| Skill host | API models: a provider-neutral emulator (SKILL.md in context, `read_skill_file` and `run_skill_script` tools). Claude Code: the real, native skill host | The emulator gives every model the same host; the native host measures real-world activation |
-| Grading | Binary rubric criteria graded by a judge model, plus deterministic regex checks | Binary criteria with quoted evidence are more stable than holistic scores |
+| Skill host | Agent CLIs (Claude Code, Codex, Gemini CLI, Copilot CLI, Cursor): the tool's own native skill loading. API models: a provider-neutral emulator (SKILL.md in context, `read_skill_file` and `run_skill_script` tools). Manual kit: your chat tool with the skill switched on | Native hosts show real-world behaviour; the emulator gives API models the same host |
+| Grading | Binary rubric criteria graded blind by a model (by default the same tool), plus deterministic regex checks | Binary criteria with quoted evidence are more stable than holistic scores; one tool is enough |
 | Critical criteria | Zero tolerance: a single failure fails the trial | Mirrors the launch rule in Gate 2 |
 | Trials | 3 per cell by default | Models are non-deterministic; report mean and spread |
 | Skill adherence | Did the model read the expected playbook and run the expected calculator? | Separates "the skill was followed" from "the answer was good" |
 
-## Running without an API key (your Claude subscription)
+## Running: one AI tool is enough
 
-The `claude-code` subject and judge run [Claude Code](https://code.claude.com) in headless mode (`claude -p`) with the
-Claude login you already have. No API key is needed, and usage counts against your plan's limits instead of being
-billed per token.
+You never need more than one AI tool, and it does not matter which one. Pick the path that matches what you use.
 
-```bash
-claude auth login                        # once: sign in with your Claude account in the browser
-aipg eval --dry-run --subject claude-code
-aipg eval --subject claude-code --trials 1
-```
-
-- **Finding the CLI:** `claude` on `PATH`, `$AIPG_CLAUDE_BIN`, or the copy bundled with the Claude desktop app, which is
-  detected automatically. The dry run prints the exact login command for the copy it found.
-- **Model and effort:** the default is Claude Opus 5.5 at `max` effort for the subject and `high` for the judge.
-  Override them per run with `--model` and `--effort`, or set `"inherit"` in `eval.config.json` to use Claude
-  Code's own defaults. Lower effort finishes faster and uses less of your plan.
-- **A real skill host:** in the with-skill arm the skill is installed into a throwaway workspace at `.claude/skills/`,
-  and Claude decides on its own whether to activate it. The report records whether it did ("activated the skill"),
-  which playbooks it read and which calculators it ran, which the API harness cannot measure.
-- **Isolation:** every run uses a fresh empty workspace; `--setting-sources project` keeps your personal settings,
-  skills, plugins, hooks and CLAUDE.md out; `--no-session-persistence` keeps eval runs out of your history; anything
-  not explicitly allowed is denied (the with-skill arm may run Python for the calculators, while the baseline arm
-  and the judge have no tools); and API keys and variables from a surrounding Claude Code session are removed from
-  the child process so the run really uses your login.
-- **CI:** run `claude setup-token` (Pro, Max, Team or Enterprise plans) and store the token as the
-  `CLAUDE_CODE_OAUTH_TOKEN` secret of the `evals` environment; the Evals workflow installs Claude Code and uses it.
-
-## Running with API keys (any model)
+### Automatic, with whatever you are signed in to
 
 ```bash
 pip install -e ".[evals]"
-export ANTHROPIC_API_KEY=...            # judge and Claude subjects
-export OPENAI_API_KEY=...               # optional: OpenAI subject
-export GEMINI_API_KEY=...               # optional: Gemini via its OpenAI-compatible endpoint
-
-aipg eval --dry-run                     # validate, plan, estimate cost; no model calls
-aipg eval --trials 1 --max-cost-usd 5   # quick signal
-aipg eval                               # full run (3 trials)
-aipg eval --subject openai --subject claude-opus-5-5 --scenario g4-claims-triage-launch
+aipg eval --dry-run     # shows what was detected and what would run; no model calls
+aipg eval --trials 1    # quick signal
+aipg eval               # full run (3 trials)
 ```
 
-Subjects are configured in `evals/eval.config.json`. Any OpenAI-compatible endpoint works through `base_url`, which
-covers Gemini, Azure OpenAI and local model servers. Subjects without credentials are skipped with a message, and the
-judge is the first entry in the `judge` list that is ready (or the one you name with `--judge`).
+`aipg eval` tries these in order and uses the **first one that is ready**, both to answer and to grade:
+
+| Order | Access | Signs in with | Status |
+|---|---|---|---|
+| 1 | Claude Code (`claude-code`) | Your Claude subscription (`claude auth login`), or the copy bundled with Claude Desktop | Verified |
+| 2 | OpenAI Codex CLI (`codex`) | ChatGPT account (`codex login`) | Unverified profile |
+| 3 | Gemini CLI (`gemini-cli`) | Google account | Unverified profile |
+| 4 | GitHub Copilot CLI (`copilot-cli`) | Copilot subscription | Unverified profile |
+| 5 | Cursor CLI (`cursor-cli`) | Cursor subscription | Unverified profile |
+| 6 | Anthropic API (`anthropic-api`) | `ANTHROPIC_API_KEY` | Verified |
+| 7 | OpenAI API (`openai-api`) | `OPENAI_API_KEY` | Verified client, any OpenAI-compatible endpoint |
+| 8 | Gemini API (`gemini-api`) | `GEMINI_API_KEY` | Via Gemini's OpenAI-compatible endpoint |
+| 9 | Local model (`local-ollama`) | Nothing: a model running on your machine with Ollama or LM Studio | No account, no cost |
+
+"Unverified" profiles were built from each tool's documentation and are tested against a fake CLI, but have not
+yet been run against the real tool. Run one and open an issue with the result, and it becomes verified.
+
+Useful options: `--subject <id>` picks a specific access, `--model` and `--effort` override the model and effort,
+`--judge <id>` grades with a different model, and `--all` runs every ready access for a cross-tool scorecard.
+
+**Grading with the same tool.** By default the tool that answered also grades, so one tool is enough. Grading is
+blind (the grader never sees which arm produced an answer), and both arms share the same grader, so the
+with-skill vs baseline difference stays comparable even though a model may favour its own style. For an
+independent grader, set `judge.use` in `eval.config.json` to another model.
+
+#### Claude Code details
+
+- **Finding the CLI:** `claude` on `PATH`, `$AIPG_CLAUDE_BIN`, or the copy bundled with the Claude desktop app,
+  detected automatically. The dry run prints the exact login command for the copy it found.
+- **Model and effort:** Claude Opus 5.5 at `max` effort by default, grading at `high`. Set `"inherit"` in
+  `eval.config.json` to use Claude Code's own defaults.
+- **A real skill host:** the skill is installed into a throwaway workspace at `.claude/skills/`, Claude decides on
+  its own whether to activate it, and the report records whether it did, which playbooks it read and which
+  calculators it ran.
+- **Isolation:** a fresh empty workspace per run; `--setting-sources project` keeps your personal settings, skills,
+  plugins, hooks and CLAUDE.md out; `--no-session-persistence` keeps runs out of your history; only Python (for the
+  calculators) is allowed in the with-skill arm and no tools at all elsewhere; API keys and variables from a
+  surrounding Claude Code session are stripped so the run really uses your login.
+- **CI:** run `claude setup-token` (Pro, Max, Team or Enterprise plans) and store the token as the
+  `CLAUDE_CODE_OAUTH_TOKEN` secret of the `evals` environment.
+
+#### Other agent CLIs
+
+Codex, Gemini CLI, Copilot CLI and Cursor CLI are driven through declarative profiles in
+`src/ai_product_governance/evals/agent_cli.py`: how the prompt is passed, where the tool discovers project skills
+(`.agents/skills/`), how the final answer is read, and how sign-in is detected. Each run uses a throwaway
+workspace, and Codex additionally runs with `--ephemeral --ignore-user-config --sandbox read-only`. These tools do
+not expose their tool calls in a stable format, so skill adherence is reported only for Claude Code. To add a tool,
+add a profile.
+
+### Manual kit, with any chat tool
+
+For ChatGPT, Gemini, Microsoft 365 Copilot, Claude apps or any tool that cannot be scripted:
+
+```bash
+aipg eval-kit create --tool "ChatGPT (GPT-5)"   # 1. writes a run sheet and empty answer files
+aipg eval-kit grade evals/kits/<kit id>         # 2. after you paste the answers: blind grading prompts
+aipg eval-kit score evals/kits/<kit id>         # 3. after you paste the gradings: the report
+```
+
+1. **Answers:** for each prompt in `1-ANSWERS.md`, open a new chat (part A with the skill switched on, part B with it
+   off), paste the prompt and save the reply into the named file.
+2. **Grading:** for each prompt in `2-GRADING.md`, open a new chat without the skill, paste it and save the JSON reply.
+   The order is shuffled so the grader cannot tell which answers used the skill.
+3. **Score:** the toolkit scores everything offline and writes the same report, gates and JUnit output as an
+   automatic run.
+
+A one-trial kit is 20 answers plus 20 gradings: slow, but it works with any tool and needs no setup.
 
 Each run writes `evals/results/<run id>/`:
 

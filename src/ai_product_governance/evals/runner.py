@@ -62,10 +62,15 @@ def plan_jobs(
     ]
 
 
-def estimate_cost(config: EvalConfig, skill: Skill, jobs: list[Job]) -> tuple[float | None, dict[str, Any]]:
+JudgeSelector = Callable[[ModelSpec], ModelSpec]
+
+
+def estimate_cost(
+    config: EvalConfig, skill: Skill, jobs: list[Job], judge_for: JudgeSelector | None = None
+) -> tuple[float | None, dict[str, Any]]:
     """Order-of-magnitude estimate for a dry run (characters / 4 tokens, fixed output assumptions)."""
     skill_tokens = len(skill.clean_body) // 4 + _EST_SKILL_CONTEXT_TOKENS
-    judge_price = config.price(config.judge.model)
+    select = judge_for or config.judge_for
     total: float | None = 0.0
     for job in jobs:
         prompt_tokens = len(job.scenario.prompt) // 4
@@ -74,6 +79,7 @@ def estimate_cost(config: EvalConfig, skill: Skill, jobs: list[Job]) -> tuple[fl
             output_tokens=_EST_OUTPUT_TOKENS,
         )
         judge = Usage(input_tokens=prompt_tokens + _EST_OUTPUT_TOKENS + 800, output_tokens=_EST_JUDGE_OUTPUT_TOKENS)
+        judge_price = config.price(select(job.subject).model)
         gen_cost, judge_cost = gen.cost(config.price(job.subject.model)), judge.cost(judge_price)
         if total is None or gen_cost is None or judge_cost is None:
             total = None
@@ -88,18 +94,19 @@ def run_jobs(
     jobs: list[Job],
     *,
     judge_spec: ModelSpec | None = None,
+    judge_for: JudgeSelector | None = None,
     max_cost_usd: float | None = None,
     provider_factory: ProviderFactory = create_provider,
     progress: Callable[[str], None] = print,
 ) -> RunOutcome:
+    """Run every job. The judge is `judge_spec` if given, else `judge_for(subject)`, else the config's choice
+    (by default the same tool that answered, so a single AI tool is enough)."""
     run_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     providers: dict[str, Provider] = {}
     lock = threading.Lock()
     spent: list[float | None] = [0.0]
     skipped: list[str] = []
-    judge_spec = judge_spec or config.judge
-    judge = provider_factory(judge_spec)
-    judge_price = config.price(judge_spec.model)
+    select = (lambda _subject: judge_spec) if judge_spec is not None else (judge_for or config.judge_for)
 
     def provider_for(spec: ModelSpec) -> Provider:
         with lock:
@@ -114,7 +121,10 @@ def run_jobs(
             if max_cost_usd is not None and current is not None and current >= max_cost_usd:
                 skipped.append(label)
                 return None
-        result = run_trial(config, skill, job, provider_for(job.subject), judge, judge_price)
+        judge = select(job.subject)
+        result = run_trial(
+            config, skill, job, provider_for(job.subject), provider_for(judge), config.price(judge.model)
+        )
         with lock:
             if spent[0] is not None:
                 spent[0] = None if result.cost_usd is None else spent[0] + result.cost_usd
@@ -140,14 +150,15 @@ def run_trial(
     runtime = SkillRuntime(skill)
     with_skill = job.arm == "with-skill"
     native = getattr(subject, "run_native", None)
+    tracks_adherence = native is None or bool(getattr(subject, "reports_tool_calls", False))
     activated: bool | None = None
     try:
         if native is not None:
-            # A native skill host (e.g. Claude Code) discovers and loads the skill itself.
+            # A native skill host (Claude Code, Codex, Gemini CLI, ...) discovers and loads the skill itself.
             answer = native(
                 job.scenario.prompt, skill.root if with_skill else None, config.baseline_system_prompt, config.max_turns
             )
-            if with_skill:
+            if with_skill and tracks_adherence:
                 activated, files, scripts = native_adherence(answer.tool_calls, skill.name)
                 runtime.files_read.extend(files)
                 runtime.scripts_run.extend(scripts)
@@ -178,9 +189,9 @@ def run_trial(
         return trial
 
     score, passed, critical, items = score_trial(job.scenario, answer.text, verdicts, config.pass_threshold)
-    judge_cost = judge_usage.cost(judge_price if judge_price is not None else config.price(config.judge.model))
+    judge_cost = judge_usage.cost(judge_price)
     routing: dict[str, bool] = {}
-    if with_skill:
+    if with_skill and tracks_adherence:
         if activated is not None:
             routing["activated the skill"] = activated
         routing.update({f"read {path}": path in runtime.files_read for path in job.scenario.expected_reads})
@@ -219,18 +230,21 @@ def build_manifest(
     trials: int,
     subjects: list[ModelSpec],
     judge_spec: ModelSpec | None = None,
+    judge_for: JudgeSelector | None = None,
 ) -> dict[str, Any]:
-    judge = judge_spec or config.judge
+    select = (lambda _subject: judge_spec) if judge_spec is not None else (judge_for or config.judge_for)
+    judges = [select(subject) for subject in subjects] or ([judge_spec] if judge_spec else [])
     return {
         "run_id": outcome.run_id,
         "created_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "package_version": __version__,
         "skill_version": skill.version,
-        "skill_sha256": _tree_hash(skill.root),
+        "skill_sha256": tree_hash(skill.root),
         "config_sha256": hashlib.sha256(config.path.read_bytes()).hexdigest(),
         "scenarios": [s.id for s in scenarios],
         "subjects": [_describe(s) for s in subjects],
-        "judge": _describe(judge),
+        "judge": _describe(judges[0]) if judges else {},
+        "judges": {subject.id: _describe(judge) for subject, judge in zip(subjects, judges, strict=False)},
         "arms": arms,
         "trials": trials,
         "git_commit": _git_commit(skill.root),
@@ -243,7 +257,7 @@ def _describe(spec: ModelSpec) -> dict[str, Any]:
     return {"id": spec.id, "provider": spec.provider, "model": spec.model, "effort": spec.params.get("effort")}
 
 
-def _tree_hash(root: Path) -> str:
+def tree_hash(root: Path) -> str:
     digest = hashlib.sha256()
     for path in sorted(p for p in root.rglob("*") if p.is_file() and "__pycache__" not in p.parts):
         digest.update(path.relative_to(root).as_posix().encode())

@@ -55,6 +55,18 @@ assessment, launch readiness review, incident review, AI PRD and model decision 
 | Any MCP client (Claude Desktop, VS Code, Cursor, Gemini CLI, Codex, ChatGPT connectors) | [MCP server](integrations/mcp/) with read-only tools, prompts and resources |
 | Agents that read `AGENTS.md` | [AGENTS.md section](integrations/agents-md/) |
 
+### One tool is enough
+
+Every feature works with whichever single AI tool you already use. You never need a second tool, a second
+sign-in or an API key.
+
+| Feature | Agentic tools (Claude Code, Codex, Copilot, Cursor, Gemini CLI) | Chat tools (ChatGPT, Gemini, Microsoft 365 Copilot, Claude apps) |
+|---|---|---|
+| Governance method: rules, six gates, playbooks, templates | The skill, loaded natively | The skill where supported, otherwise the prompt pack |
+| Policy as code: your organisation's tiers, controls and approvers | `.ai-governance/policy.json` in the repo | Upload your policy file with the prompt pack |
+| Deterministic calculators: risk tier, unit economics | The bundled Python scripts | Code execution where the tool has it, the MCP server, or the documented formulas |
+| Evals: does the skill improve answers? | `aipg eval` detects your tool and uses it to answer and to grade | `aipg eval-kit`: copy-and-paste steps, scored offline |
+
 ## Quick start
 
 **Any Agent Skills tool:**
@@ -137,7 +149,7 @@ flowchart LR
   tool lacks native support, and they are generated, committed and drift-checked in CI.
 - **Read-only by design:** MCP tools are side-effect free and the policy is fixed at server start, so a
   prompt-injected model cannot change the rules.
-- **Decisions are recorded:** six [architecture decision records](docs/adr/) explain the trade-offs.
+- **Decisions are recorded:** seven [architecture decision records](docs/adr/) explain the trade-offs.
 
 Full details: [docs/architecture.md](docs/architecture.md).
 
@@ -145,7 +157,7 @@ Full details: [docs/architecture.md](docs/architecture.md).
 
 | Check | What it guarantees |
 |---|---|
-| 106 unit and integration tests on Linux, Windows and macOS, Python 3.11-3.14 | Engines, MCP server, adapters and eval harness behave as specified |
+| 127 unit and integration tests on Linux, Windows and macOS, Python 3.11-3.14 | Engines, MCP server, adapters and eval harness behave as specified |
 | Bundled scripts tested on Python 3.9 | They run in code-interpreter sandboxes |
 | `ruff`, `ruff format`, `mypy --strict` | Clean, consistently typed code |
 | `aipg validate --strict` | Agent Skills spec compliance, policy schema, links, version consistency, size budgets |
@@ -153,21 +165,21 @@ Full details: [docs/architecture.md](docs/architecture.md).
 | Wheel smoke test in a clean environment | The packaged skill and MCP server work outside the repository |
 | `aipg eval` (scheduled and on demand) | Behavioural quality across models, with and without the skill, gated against a baseline |
 
-### Model-agnostic evals
+### Tool-independent evals
 
 Ten scenarios cover every gate and the classic failure modes: fabricated numbers, AI where rules suffice, launch
-pressure, autonomous money movement, premature model switching and legal overreach. Each runs on any model
-(Claude, OpenAI, or any OpenAI-compatible endpoint such as Gemini) **with** the skill and **without** it, graded by
-a blind rubric judge plus deterministic checks, with critical criteria that fail a trial outright. See the
-[evaluation methodology](docs/evaluation.md).
+pressure, autonomous money movement, premature model switching and legal overreach. Each runs **with** the skill
+and **without** it, graded blind against a rubric plus deterministic checks, with critical criteria that fail a
+trial outright. See the [evaluation methodology](docs/evaluation.md).
 
-No API key? Run the evals on your Claude subscription through Claude Code, which also tests whether Claude
-activates the skill on its own:
+Use whatever you have; one tool does both the answering and the grading:
 
 ```bash
-claude auth login                                 # once, in the browser
-aipg eval --subject claude-code --trials 1        # Claude Opus 5.5 at max effort by default
-aipg eval --subject claude-code --effort high     # faster, uses less of your plan
+aipg eval --dry-run        # shows which AI access was detected: Claude Code, Codex, Gemini CLI, Copilot CLI,
+                           # Cursor, an API key, or a local model (Ollama/LM Studio)
+aipg eval --trials 1       # runs the suite with the first one that is ready
+
+aipg eval-kit create       # chat-only tool (ChatGPT, Gemini, M365 Copilot)? copy-and-paste kit, scored offline
 ```
 
 ## Development

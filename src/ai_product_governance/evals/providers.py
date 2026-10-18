@@ -6,15 +6,19 @@
   endpoint via `base_url` (for example Gemini, Azure OpenAI, or a local model server).
 * `claude-code` - Claude Code in headless mode with the user's Claude login: no API key
   (see claude_code.py).
+* `agent-cli` - any other agentic tool with a headless mode (Codex, Gemini CLI, Copilot CLI,
+  Cursor CLI), described by a declarative profile (see agent_cli.py).
 
 The two API providers run the same manual tool loop so every model gets the same
-skill-host tools; Claude Code loads the skill natively instead.
+skill-host tools; Claude Code and agent CLIs load the skill natively instead. Local model
+servers (Ollama, LM Studio, vLLM) work through `openai` with `"local": true` and no key.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Protocol
@@ -199,7 +203,9 @@ class OpenAIProvider:
 
         params = spec.params
         key_env = str(params.get("api_key_env", "OPENAI_API_KEY"))
-        kwargs: dict[str, Any] = {"api_key": os.environ.get(key_env), "max_retries": int(params.get("max_retries", 4))}
+        # Local servers (Ollama, LM Studio, vLLM) need no key, but the SDK insists on a non-empty value.
+        api_key = "local-no-key" if params.get("local") else os.environ.get(key_env)
+        kwargs: dict[str, Any] = {"api_key": api_key, "max_retries": int(params.get("max_retries", 4))}
         if params.get("base_url"):
             kwargs["base_url"] = params["base_url"]
         self.spec = spec
@@ -302,6 +308,12 @@ def readiness(spec: ModelSpec) -> tuple[bool, str]:
         from ai_product_governance.evals.claude_code import ClaudeCodeProvider
 
         return ClaudeCodeProvider(spec).check_ready()
+    if spec.provider == "agent-cli":
+        from ai_product_governance.evals.agent_cli import AgentCliProvider
+
+        return AgentCliProvider(spec).check_ready()
+    if spec.provider == "openai" and spec.params.get("local"):
+        return _local_server_ready(str(spec.params.get("base_url", "")), spec.model)
     if os.environ.get(api_key_env(spec)):
         return True, f"{api_key_env(spec)} is set"
     # The Anthropic SDK can also authenticate from ANTHROPIC_AUTH_TOKEN or an `ant auth login` profile.
@@ -312,6 +324,22 @@ def readiness(spec: ModelSpec) -> tuple[bool, str]:
     ):
         return True, "Anthropic auth token or profile is set"
     return False, f"set {api_key_env(spec)}"
+
+
+def _local_server_ready(base_url: str, model: str) -> tuple[bool, str]:
+    """A local OpenAI-compatible server (Ollama, LM Studio, vLLM) is ready if it lists the model."""
+    if not base_url.startswith(("http://localhost", "http://127.0.0.1")):
+        return False, "local models must use a localhost base_url"
+    url = base_url.rstrip("/") + "/models"
+    try:
+        with urllib.request.urlopen(url, timeout=2) as response:  # noqa: S310 - localhost URL checked above
+            listing = json.loads(response.read().decode("utf-8"))
+    except (OSError, ValueError):
+        return False, f"no local model server at {base_url} (start Ollama or LM Studio)"
+    names = {str(item.get("id", "")) for item in listing.get("data", []) if isinstance(item, dict)}
+    if model in names:
+        return True, f"local server has {model}"
+    return False, f"local server is running but does not have '{model}' (for Ollama: `ollama pull {model}`)"
 
 
 def credentials_available(spec: ModelSpec) -> bool:
@@ -327,4 +355,8 @@ def create_provider(spec: ModelSpec) -> Provider:
         from ai_product_governance.evals.claude_code import ClaudeCodeProvider
 
         return ClaudeCodeProvider(spec)
+    if spec.provider == "agent-cli":
+        from ai_product_governance.evals.agent_cli import AgentCliProvider
+
+        return AgentCliProvider(spec)
     raise ValueError(f"Unknown provider '{spec.provider}'")

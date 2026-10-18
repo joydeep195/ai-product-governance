@@ -1,38 +1,53 @@
-"""Eval configuration (evals/eval.config.json)."""
+"""Eval configuration (evals/eval.config.json).
+
+`models` lists every way the harness can reach a model: an agent CLI you are signed in to,
+an API key, or a local model server. They are tried in order and the first one that is ready
+is used, so one tool is always enough. The judge defaults to that same tool.
+"""
 
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
 from jsonschema import Draft202012Validator
 
 ARMS = ("with-skill", "baseline")
-
-_PROVIDER = {
-    "type": "object",
-    "required": ["provider", "model"],
-    "additionalProperties": False,
-    "properties": {
-        "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$"},
-        "provider": {"enum": ["anthropic", "openai", "claude-code"]},
-        "model": {"type": "string", "minLength": 1},
-        "enabled": {"type": "boolean"},
-        "params": {"type": "object"},
-    },
-}
+PROVIDERS = ("claude-code", "agent-cli", "anthropic", "openai")
+JUDGE_SAME_AS_SUBJECT = "subject"
 
 CONFIG_SCHEMA: dict[str, Any] = {
     "type": "object",
-    "required": ["subjects", "judge", "trials", "pass_threshold", "gates"],
+    "required": ["models", "trials", "pass_threshold", "gates"],
     "additionalProperties": False,
     "properties": {
         "$schema": {"type": "string"},
-        "subjects": {"type": "array", "minItems": 1, "items": {**_PROVIDER, "required": ["id", "provider", "model"]}},
-        # One judge, or a preference-ordered list: the first one with working credentials is used.
-        "judge": {"oneOf": [_PROVIDER, {"type": "array", "minItems": 1, "items": _PROVIDER}]},
+        "models": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "type": "object",
+                "required": ["id", "provider", "model"],
+                "additionalProperties": False,
+                "properties": {
+                    "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$"},
+                    "provider": {"enum": list(PROVIDERS)},
+                    "model": {"type": "string", "minLength": 1},
+                    "auto": {"type": "boolean"},
+                    "params": {"type": "object"},
+                },
+            },
+        },
+        "judge": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "use": {"type": "string", "minLength": 1},
+                "params": {"type": "object"},
+            },
+        },
         "arms": {"type": "array", "items": {"enum": list(ARMS)}, "minItems": 1, "uniqueItems": True},
         "trials": {"type": "integer", "minimum": 1, "maximum": 20},
         "concurrency": {"type": "integer", "minimum": 1, "maximum": 32},
@@ -75,7 +90,7 @@ class ModelSpec:
     id: str
     provider: str
     model: str
-    enabled: bool = True
+    auto: bool = True  # eligible for automatic detection
     params: dict[str, Any] = field(default_factory=dict)
 
 
@@ -89,8 +104,9 @@ class Gates:
 
 @dataclass(frozen=True)
 class EvalConfig:
-    subjects: tuple[ModelSpec, ...]
-    judges: tuple[ModelSpec, ...]  # preference order
+    models: tuple[ModelSpec, ...]  # detection order
+    judge_use: str  # "subject" (the same tool that answered) or a model id
+    judge_params: dict[str, Any]
     arms: tuple[str, ...]
     trials: int
     concurrency: int
@@ -101,10 +117,17 @@ class EvalConfig:
     pricing_per_mtok: dict[str, dict[str, float]]
     path: Path
 
-    @property
-    def judge(self) -> ModelSpec:
-        """The preferred judge (the CLI falls back to later ones that have credentials)."""
-        return self.judges[0]
+    def model(self, model_id: str) -> ModelSpec:
+        for spec in self.models:
+            if spec.id == model_id:
+                return spec
+        raise KeyError(f"Unknown model '{model_id}'. Configured: {', '.join(m.id for m in self.models)}")
+
+    def judge_for(self, subject: ModelSpec, use: str | None = None) -> ModelSpec:
+        """The judge for a subject: by default the same tool, with the judge's parameter overrides."""
+        choice = use or self.judge_use
+        base = subject if choice == JUDGE_SAME_AS_SUBJECT else self.model(choice)
+        return replace(base, id=f"{base.id}-judge", params={**base.params, **self.judge_params})
 
     def price(self, model: str) -> dict[str, float] | None:
         return self.pricing_per_mtok.get(model)
@@ -122,20 +145,20 @@ def load_config(path: Path) -> EvalConfig:
     ]
     if errors:
         raise ConfigError("Invalid eval config:\n- " + "\n- ".join(errors))
-    subjects = tuple(
-        ModelSpec(s["id"], s["provider"], s["model"], s.get("enabled", True), dict(s.get("params", {})))
-        for s in raw["subjects"]
+    models = tuple(
+        ModelSpec(m["id"], m["provider"], m["model"], m.get("auto", True), dict(m.get("params", {})))
+        for m in raw["models"]
     )
-    if len({s.id for s in subjects}) != len(subjects):
-        raise ConfigError("subject ids must be unique")
-    judge_entries = raw["judge"] if isinstance(raw["judge"], list) else [raw["judge"]]
-    judges = tuple(
-        ModelSpec(j.get("id", f"judge-{i + 1}"), j["provider"], j["model"], True, dict(j.get("params", {})))
-        for i, j in enumerate(judge_entries)
-    )
+    if len({m.id for m in models}) != len(models):
+        raise ConfigError("model ids must be unique")
+    judge = raw.get("judge", {})
+    judge_use = judge.get("use", JUDGE_SAME_AS_SUBJECT)
+    if judge_use != JUDGE_SAME_AS_SUBJECT and judge_use not in {m.id for m in models}:
+        raise ConfigError(f"judge.use must be '{JUDGE_SAME_AS_SUBJECT}' or a configured model id, not '{judge_use}'")
     return EvalConfig(
-        subjects=subjects,
-        judges=judges,
+        models=models,
+        judge_use=judge_use,
+        judge_params=dict(judge.get("params", {})),
         arms=tuple(raw.get("arms", ARMS)),
         trials=raw["trials"],
         concurrency=raw.get("concurrency", 4),

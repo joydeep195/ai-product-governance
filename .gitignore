@@ -16,6 +16,7 @@ htmlcov/
 
 # Eval runs (commit only curated baselines in evals/baselines/)
 evals/results/
+evals/kits/
 
 # Local environment
 .env
