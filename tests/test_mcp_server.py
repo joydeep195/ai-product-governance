@@ -107,7 +107,7 @@ def test_prompts_cover_every_workflow() -> None:
             rendered = await client.get_prompt("ai-launch-review", {"status": "Kill switch untested"})
             text = rendered.messages[0].content.text  # type: ignore[union-attr]
             assert "Kill switch untested" in text
-            assert "Gate 4" in text and "aipg-default v1.0.0" in text
+            assert "Gate 4" in text and "aipg-default v1.1.0" in text
 
     run(scenario())
 
@@ -134,7 +134,7 @@ def test_policy_is_fixed_at_start_up(tmp_path: Path, policy: dict[str, Any]) -> 
         async with Client(build_server(str(path))) as client:
             result = await client.call_tool("get_policy", {})
             assert result.structured_content is not None
-            assert result.structured_content["label"] == "acme-ai-policy v1.0.0"
+            assert result.structured_content["label"] == "acme-ai-policy v1.1.0"
             # The tools expose no parameter for choosing another policy file.
             tools = {t.name: t for t in (await client.list_tools()).tools}
             assert set(tools["classify_risk_tier"].input_schema["properties"]) == {"answers"}

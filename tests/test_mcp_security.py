@@ -238,7 +238,7 @@ def test_audit_lines_have_the_documented_shape(tmp_path: Path) -> None:
     assert first["timestamp"].endswith("Z")
     assert datetime.fromisoformat(first["timestamp"]).tzinfo == UTC
     assert first["event"] == "tools/call"
-    assert (first["policy_id"], first["policy_version"]) == ("aipg-default", "1.0.0")
+    assert (first["policy_id"], first["policy_version"]) == ("aipg-default", "1.1.0")
     assert first["server_version"] == __version__
     canonical = json.dumps(HIGH_RISK_ANSWERS, sort_keys=True, separators=(",", ":"))
     assert first["arguments_sha256"] == hashlib.sha256(canonical.encode()).hexdigest()

@@ -2,9 +2,10 @@
 """Deterministic AI risk-tier classifier for the ai-product-governance skill.
 
 Evaluates questionnaire answers against a governance policy (policy-as-code) and
-reports the risk tier, the rules that triggered it, required controls, approvers,
-evaluation minimums and the autonomy cap at launch. The same answers and policy
-always produce the same result, so the output is suitable for audit trails.
+reports the risk tier, the rules that triggered it, required controls (with any
+framework mappings the policy defines), approvers, evaluation minimums and the
+autonomy cap at launch. The same answers and policy always produce the same
+result, so the output is suitable for audit trails.
 
 Standard library only; runs on Python 3.9+.
 
@@ -39,6 +40,10 @@ POLICY_ENV_VAR = "AIPG_POLICY"
 WORKSPACE_POLICY = Path(".ai-governance") / "policy.json"
 QUESTION_TYPES = ("boolean", "number", "enum", "multiselect")
 LEAF_OPERATORS = ("equals", "in", "contains_any", "gte", "lte")
+MAPPINGS_NOTE = (
+    "Framework mappings are informative, not legal advice: they show which requirement each control addresses, "
+    "not that a requirement applies or is met. Legal and compliance teams confirm applicability."
+)
 
 
 class PolicyError(ValueError):
@@ -134,6 +139,24 @@ def _check_condition(condition: Any, questions: Dict[str, Dict[str, Any]], where
             problems.append(f"{where}: '{value}' is not an option of '{question_id}'")
 
 
+def _check_mappings(control: Dict[str, Any], problems: List[str]) -> None:
+    where = f"control '{control.get('id')}'"
+    mappings = control.get("mappings", [])
+    if not isinstance(mappings, list):
+        problems.append(f"{where}: 'mappings' must be a list")
+        return
+    for index, mapping in enumerate(mappings):
+        valid = (
+            isinstance(mapping, dict)
+            and all(isinstance(mapping.get(key), str) and mapping[key] for key in ("framework", "reference"))
+            and isinstance(mapping.get("note", ""), str)
+        )
+        if not valid:
+            problems.append(
+                f"{where}: mapping #{index} needs non-empty 'framework' and 'reference' strings and an optional string 'note'"
+            )
+
+
 def validate_policy(policy: Any) -> List[str]:
     """Structural and referential checks. Returns a list of problems (empty when valid)."""
     problems: List[str] = []
@@ -159,6 +182,8 @@ def validate_policy(policy: Any) -> List[str]:
     controls = {control.get("id") for control in policy["controls"]}
     if len(controls) != len(policy["controls"]):
         problems.append("control IDs must be unique")
+    for control in policy["controls"]:
+        _check_mappings(control, problems)
 
     tiers: Dict[str, Dict[str, Any]] = {}
     ranks = set()
@@ -336,6 +361,7 @@ def classify(
                 "description": control["description"],
                 "evidence": control["evidence"],
                 "required_by": required_by,
+                "mappings": [dict(mapping) for mapping in control.get("mappings", [])],
             }
         )
 
@@ -363,6 +389,8 @@ def classify(
             f"Planned autonomy {requested} exceeds the launch cap {cap} for the {tier['name']} tier. "
             f"Launch at {cap} or lower and promote with evidence."
         )
+    if any(control["mappings"] for control in required):
+        notes.append(MAPPINGS_NOTE)
 
     return {
         "policy": {
@@ -398,6 +426,11 @@ def classify(
 # --------------------------------------------------------------------------- rendering
 
 
+def render_mappings(mappings: List[Dict[str, Any]]) -> str:
+    """One table cell: 'EU AI Act Art. 14; NIST AI RMF 1.0 MAP 3.5'. Notes stay in the JSON output."""
+    return "; ".join(f"{m['framework']} {m['reference']}" for m in mappings) or "-"
+
+
 def render_markdown(result: Dict[str, Any]) -> str:
     policy = result["policy"]
     tier = result["tier"]
@@ -420,10 +453,17 @@ def render_markdown(result: Dict[str, Any]) -> str:
         cap = result["max_autonomy_at_launch"]
         planned = result["planned_autonomy"] or "not stated"
         lines.append(f"**Autonomy:** planned {planned}; maximum at launch {cap}.")
-        lines += ["", "| Control | Name | Required by | Evidence |", "|---|---|---|---|"]
-        lines += [
-            f"| {c['id']} | {c['name']} | {c['required_by']} | {c['evidence']} |" for c in result["required_controls"]
-        ]
+        controls = result["required_controls"]
+        mapped = any(c.get("mappings") for c in controls)
+        if mapped:
+            lines += ["", "| Control | Name | Required by | Evidence | Maps to |", "|---|---|---|---|---|"]
+            lines += [
+                f"| {c['id']} | {c['name']} | {c['required_by']} | {c['evidence']} | {render_mappings(c.get('mappings', []))} |"
+                for c in controls
+            ]
+        else:
+            lines += ["", "| Control | Name | Required by | Evidence |", "|---|---|---|---|"]
+            lines += [f"| {c['id']} | {c['name']} | {c['required_by']} | {c['evidence']} |" for c in controls]
         lines += ["", "**Approvers:** " + ", ".join(result["approvers"])]
         evals = result["eval_requirements"] or {}
         if evals:
