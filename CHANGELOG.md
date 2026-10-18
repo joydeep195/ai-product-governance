@@ -6,6 +6,22 @@ Claude plugin manifest always share one version; `aipg validate` enforces it.
 
 ## [Unreleased]
 
+### Security
+
+- Agent CLI evals no longer pass a prompt as an argument to a Windows `.cmd` or `.bat` shim, where `cmd.exe` could
+  run quotes and `&` in the prompt (which includes model output when judging) as commands.
+
+### Added
+
+- The financial-services example policy (2.4.0) adds adverse action reasons (`TRN-03`), a third-party dependency
+  and exit plan (`TPR-01`), complaint monitoring (`OPS-06`) and communications record-keeping (`OPS-07`), each
+  applied by the questionnaire answers that call for it; an `external_model_dependency` question; and a compliance
+  officer approver for the high tier.
+
+### Documentation
+
+- The README opens with the install command; the installation guide covers common `npx` failures.
+
 ## [1.0.0] - 2026-10-18
 
 ### Added

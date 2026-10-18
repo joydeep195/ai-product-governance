@@ -23,6 +23,19 @@ npx skills add joydeep195/ai-product-governance -a github-copilot -y
 Agent names: `claude-code`, `codex`, `cursor`, `github-copilot`, `gemini-cli`, `windsurf` (and many more).
 Keep it current with `npx skills update`; remove it with `npx skills remove ai-product-governance`.
 
+### If `npx` fails
+
+- **The command is `npx skills add …`.** This project is not an npm package, so `npx ai-product-governance`
+  fails with a 404. `skills` is the installer; the repository name is its argument.
+- **Install Node.js and Git first.** The installer needs Node.js 18 or later (`node --version`) and clones the
+  repository with Git (`git --version`).
+- **Windows PowerShell says "running scripts is disabled".** Run `npx.cmd skills add joydeep195/ai-product-governance`
+  instead, or allow local scripts once with `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
+- **Windows reports a symlink or permission error.** Add `--copy` to copy files instead of linking them, or turn on
+  Developer Mode in Windows settings.
+- **A corporate proxy or firewall blocks the download.** Set `HTTPS_PROXY` (and `npm config set proxy`), or use
+  Option 2 below, which needs no network tooling.
+
 ## Option 2: copy one folder (no tooling needed)
 
 Download the repository (**Code → Download ZIP** on GitHub, or `git clone`), then copy the folder

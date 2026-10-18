@@ -105,6 +105,18 @@ def test_failures_are_reported_not_raised(tmp_path: Path) -> None:
         cli.complete_json("S", "U", VERDICT_SCHEMA, "verdicts")
 
 
+@pytest.mark.parametrize("profile", ["copilot", "cursor"])
+def test_prompt_is_never_passed_to_a_windows_batch_file(
+    profile: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(agent_cli.os, "name", "nt")
+    shim = tmp_path / f"{profile}.CMD"
+    shim.write_text("@echo off\r\n", encoding="utf-8")
+    cli = AgentCliProvider(ModelSpec("x", "agent-cli", "inherit", True, {"profile": profile, "command": str(shim)}))
+    result = cli.run_native('hi" & calc & "', None, "", 3)
+    assert result.text == "" and "batch file" in (result.error or "")
+
+
 def test_readiness(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(agent_cli.shutil, "which", lambda name: None)
     missing = AgentCliProvider(ModelSpec("g", "agent-cli", "inherit", True, {"profile": "gemini"}))

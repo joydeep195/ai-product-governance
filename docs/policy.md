@@ -56,7 +56,15 @@ shows a regulated bank that:
 - makes every customer-facing AI use case high risk;
 - lowers the financial-impact threshold from 1,000 to 250;
 - adds an independent model validation control (`MRM-01`) and the model risk approver;
-- requires 500 golden-set cases for high-risk launches.
+- requires 500 golden-set cases and a compliance officer's sign-off for high-risk launches;
+- adds four controls that apply only when the questionnaire answers call for them.
+
+| Control | Applies when | Covers |
+|---|---|---|
+| `TRN-03` Adverse action reasons | the output influences decisions about people's access to services | specific principal reasons for a decline, reduction or repricing |
+| `TPR-01` Third-party dependency and exit plan | the system depends on an external model or AI platform (a question this policy adds) | third-party risk onboarding, contract rights and a tested exit plan |
+| `OPS-06` Complaint monitoring | the AI is customer-facing or influences decisions about people | tagging, trending and root-causing complaints that involve the AI |
+| `OPS-07` Communications record-keeping | the AI is customer-facing or its content is published externally | books-and-records retention and supervisory review of AI communications |
 
 Validate before you publish:
 

@@ -119,6 +119,10 @@ PROFILES: dict[str, CliProfile] = {
 }
 
 
+def _is_batch_file(executable: str) -> bool:
+    return os.name == "nt" and Path(executable).suffix.lower() in (".bat", ".cmd")
+
+
 def _scrubbed_environment() -> dict[str, str]:
     """Drop variables that belong to a surrounding Claude Code session; keep everything else."""
     return {
@@ -207,6 +211,14 @@ class AgentCliProvider:
         if schema_file is not None and profile.schema_args:
             args += fill(profile.schema_args)
         prompt_in_args = any("{prompt}" in part for part in profile.prompt_args)
+        if prompt_in_args and _is_batch_file(self.command[0]):
+            # cmd.exe re-parses a batch file's arguments: quotes and `&` in the prompt (which includes model
+            # output when judging) would run as commands, and newlines would silently truncate it.
+            raise ProviderError(
+                f"{profile.title} resolves to the batch file {self.command[0]}, which cannot safely receive a "
+                "prompt as an argument. Set `command` in the eval config to the real executable "
+                '(for example ["node", "<path to the tool>/index.js"]).'
+            )
         args += fill(profile.prompt_args)
         return args, None if prompt_in_args else prompt
 

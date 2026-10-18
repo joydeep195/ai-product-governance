@@ -1,5 +1,8 @@
 # AI Product Governance
 
+**Install:** `npx skills add joydeep195/ai-product-governance` (needs Node.js 18+ and Git). Other tools, and fixes
+if `npx` fails: [installation guide](docs/install.md).
+
 **Ship AI features that are worth building, measurably good, controlled in proportion to their risk, and safe to
 operate, in whichever AI tool your teams use.**
 

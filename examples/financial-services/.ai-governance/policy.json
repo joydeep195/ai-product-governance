@@ -1,10 +1,10 @@
 {
   "$schema": "../../../skills/ai-product-governance/assets/policy/policy.schema.json",
   "policy_id": "fs-bank-ai-policy",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "name": "Example: AI policy for a regulated retail bank",
   "owner": "Model risk management committee",
-  "description": "Illustrative organisation policy showing how a regulated firm tightens the default: customer-facing AI is high risk, the financial threshold drops to 250, a model-risk validation control is added, and the high tier requires a larger golden set. Place it at .ai-governance/policy.json in a workspace.",
+  "description": "Illustrative organisation policy showing how a regulated firm tightens the default: customer-facing AI is high risk, the financial threshold drops to 250, model-risk validation, adverse action reasons, third-party exit planning, complaint monitoring and communications record-keeping are added, and the high tier requires a larger golden set and compliance sign-off. Place it at .ai-governance/policy.json in a workspace.",
   "default_tier": "minimal",
   "autonomy_levels": [
     {
@@ -149,6 +149,7 @@
         "Security lead",
         "Privacy officer",
         "Legal counsel",
+        "Compliance officer",
         "AI governance board",
         "Model risk management"
       ],
@@ -218,6 +219,11 @@
       "id": "third_party_model_provider",
       "type": "boolean",
       "text": "Will confidential or personal data be sent to an external model provider?"
+    },
+    {
+      "id": "external_model_dependency",
+      "type": "boolean",
+      "text": "Does the system depend on a model or AI platform supplied by a third party (an API, a cloud AI service or a vendor product), even if no confidential data is sent to it?"
     },
     {
       "id": "uses_retrieval",
@@ -491,6 +497,62 @@
         ]
       },
       "reason": "People outside the organisation encounter AI output."
+    },
+    {
+      "control": "TRN-03",
+      "when": {
+        "question": "consequential_decisions",
+        "equals": true
+      },
+      "reason": "People adversely affected by a decision must be told the specific reasons for it."
+    },
+    {
+      "control": "TPR-01",
+      "when": {
+        "any": [
+          {
+            "question": "external_model_dependency",
+            "equals": true
+          },
+          {
+            "question": "third_party_model_provider",
+            "equals": true
+          }
+        ]
+      },
+      "reason": "The service depends on a third-party model or AI platform."
+    },
+    {
+      "control": "OPS-06",
+      "when": {
+        "any": [
+          {
+            "question": "customer_facing",
+            "equals": true
+          },
+          {
+            "question": "consequential_decisions",
+            "equals": true
+          }
+        ]
+      },
+      "reason": "Customers interact with the AI or are affected by its decisions."
+    },
+    {
+      "control": "OPS-07",
+      "when": {
+        "any": [
+          {
+            "question": "customer_facing",
+            "equals": true
+          },
+          {
+            "question": "external_publication",
+            "equals": true
+          }
+        ]
+      },
+      "reason": "AI output becomes a communication with customers or the public."
     }
   ],
   "controls": [
@@ -567,6 +629,12 @@
       "evidence": "Appeal process and response times"
     },
     {
+      "id": "TRN-03",
+      "name": "Adverse action reasons",
+      "description": "When AI output contributes to declining, reducing or repricing credit, insurance or another service, the person receives the specific principal reasons that actually drove the outcome, traceable to the inputs used, within the regulatory deadline (for example ECOA and Regulation B, or FCRA, in the US). Generic reasons are not acceptable.",
+      "evidence": "Reason-code mapping, sample notices and compliance sign-off"
+    },
+    {
       "id": "SEC-01",
       "name": "Prompt-injection defences",
       "description": "Retrieved, tool and user-supplied content is treated as untrusted data and cannot change goals or permissions.",
@@ -609,6 +677,12 @@
       "evidence": "Access-control tests"
     },
     {
+      "id": "TPR-01",
+      "name": "Third-party dependency and exit plan",
+      "description": "Each external model or AI platform is onboarded through third-party risk management: due diligence, a register entry, and contract rights to audit, incident notification and advance notice of model changes. A documented, tested exit plan names the substitute model or the non-AI fallback and the time needed to switch (for example DORA, or US interagency third-party risk guidance).",
+      "evidence": "Third-party register entry, contract clauses and exit-plan test record"
+    },
+    {
       "id": "OPS-01",
       "name": "Monitoring and alerting",
       "description": "Quality, safety, cost and latency are monitored with alert thresholds and owners.",
@@ -637,6 +711,18 @@
       "name": "Model change management",
       "description": "Exact model versions are pinned; any change is evaluated and rolled out like a release.",
       "evidence": "Configuration and change log"
+    },
+    {
+      "id": "OPS-06",
+      "name": "Complaint monitoring",
+      "description": "Complaints and disputes involving the AI feature are tagged as such, root-caused and trended with an alert threshold; recurring themes become eval cases and repeated harm is handled as an incident (for example FCA Consumer Duty outcome monitoring, or CFPB complaint handling).",
+      "evidence": "Complaint taxonomy, monthly trend report and linked eval cases"
+    },
+    {
+      "id": "OPS-07",
+      "name": "Communications record-keeping",
+      "description": "AI-generated or AI-assisted communications with customers or the public are kept in the firm's tamper-evident books-and-records archive with the model version and any human edits, for the regulatory period, and are subject to supervisory review (for example SEC Rule 17a-4 and FINRA Rule 4511, or MiFID II record-keeping). For these records, regulatory retention overrides the retention limits in PRV-02.",
+      "evidence": "Archive configuration, retention schedule and supervisory review sample"
     },
     {
       "id": "MRM-01",

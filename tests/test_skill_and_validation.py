@@ -127,3 +127,30 @@ def test_workspace_policy_overrides_default(risk_engine: Any, repo: Path) -> Non
     assert result["policy"]["id"] == "fs-bank-ai-policy"
     assert "MRM-01" in [c["id"] for c in result["required_controls"]]
     assert "Model risk management" in result["approvers"]
+
+
+FS_CONTROLS = {"TRN-03", "TPR-01", "OPS-06", "OPS-07"}
+
+
+@pytest.mark.parametrize(
+    ("answers", "expected"),
+    [
+        # A vendor-hosted model that drafts credit decisions for customers needs every financial-services control.
+        (
+            {"customer_facing": True, "consequential_decisions": True, "external_model_dependency": True},
+            FS_CONTROLS,
+        ),
+        # Back-office decision support with a self-hosted model: reasons and complaints, but no customer comms.
+        ({"consequential_decisions": True}, {"TRN-03", "OPS-06"}),
+        # Marketing copy from a vendor API: archived like any other external communication.
+        ({"external_publication": True, "external_model_dependency": True}, {"TPR-01", "OPS-07"}),
+        # An internal summariser on a self-hosted model needs none of them.
+        ({"customer_facing": False, "consequential_decisions": False, "external_model_dependency": False}, set()),
+    ],
+)
+def test_financial_services_controls_follow_the_answers(
+    risk_engine: Any, repo: Path, answers: dict[str, Any], expected: set[str]
+) -> None:
+    policy = risk_engine.load_policy(repo / "examples" / "financial-services" / ".ai-governance" / "policy.json")
+    result = risk_engine.classify(policy, answers)
+    assert FS_CONTROLS & {c["id"] for c in result["required_controls"]} == expected
