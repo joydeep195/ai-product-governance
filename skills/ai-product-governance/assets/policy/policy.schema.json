@@ -127,7 +127,22 @@
           "id": { "type": "string", "pattern": "^[A-Z]+-\\d{2}$" },
           "name": { "type": "string" },
           "description": { "type": "string" },
-          "evidence": { "type": "string" }
+          "evidence": { "type": "string" },
+          "mappings": {
+            "type": "array",
+            "description": "Informative crosswalk to the external frameworks and regulations this control addresses. Not legal advice.",
+            "uniqueItems": true,
+            "items": {
+              "type": "object",
+              "required": ["framework", "reference"],
+              "additionalProperties": false,
+              "properties": {
+                "framework": { "type": "string", "minLength": 1, "description": "Framework or regulation, e.g. 'EU AI Act' or 'NIST AI RMF 1.0'." },
+                "reference": { "type": "string", "minLength": 1, "description": "Article, clause, subcategory or section, e.g. 'Art. 14' or 'MEASURE 2.11'." },
+                "note": { "type": "string", "description": "What the reference covers or how the control relates to it." }
+              }
+            }
+          }
         }
       }
     },

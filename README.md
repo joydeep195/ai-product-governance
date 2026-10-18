@@ -111,7 +111,7 @@ organisation's rules. See the [policy guide](docs/policy.md) and an
 
 ```console
 $ python skills/ai-product-governance/scripts/risk_tier.py --answers examples/inputs/refund-agent.answers.json --format md
-**Risk tier: High** | Policy: aipg-default v1.0.0 (bundled default policy)
+**Risk tier: High** | Policy: aipg-default v1.1.0 (bundled default policy)
 
 | Rule | Tier | Reason |
 |---|---|---|

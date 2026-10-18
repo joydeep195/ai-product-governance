@@ -17,6 +17,13 @@ Claude plugin manifest always share one version; `aipg validate` enforces it.
   and exit plan (`TPR-01`), complaint monitoring (`OPS-06`) and communications record-keeping (`OPS-07`), each
   applied by the questionnaire answers that call for it; an `external_model_dependency` question; and a compliance
   officer approver for the high tier.
+- Regulatory crosswalk: a control can list the framework requirements it addresses in an optional `mappings`
+  array (`framework`, `reference`, optional `note`). The default policy (1.1.0) maps every control to the EU AI
+  Act, NIST AI RMF 1.0 subcategories and ISO/IEC 42001 Annex A, plus GDPR and the OWASP Top 10 for LLM
+  Applications where relevant. The financial-services example (2.5.0) adds SR 26-2 (which replaced SR 11-7),
+  DORA, ECOA and Regulation B, FCRA, SEC Rule 17a-4, FINRA rules, MiFID II and the FCA Consumer Duty.
+  `risk_tier.py` returns the mappings with each required control and adds a "Maps to" column to its Markdown
+  output. The mappings are informative, not legal advice.
 
 ### Documentation
 

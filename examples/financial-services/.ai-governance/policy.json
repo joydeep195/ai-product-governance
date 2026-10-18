@@ -1,10 +1,10 @@
 {
   "$schema": "../../../skills/ai-product-governance/assets/policy/policy.schema.json",
   "policy_id": "fs-bank-ai-policy",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "name": "Example: AI policy for a regulated retail bank",
   "owner": "Model risk management committee",
-  "description": "Illustrative organisation policy showing how a regulated firm tightens the default: customer-facing AI is high risk, the financial threshold drops to 250, model-risk validation, adverse action reasons, third-party exit planning, complaint monitoring and communications record-keeping are added, and the high tier requires a larger golden set and compliance sign-off. Place it at .ai-governance/policy.json in a workspace.",
+  "description": "Illustrative organisation policy showing how a regulated firm tightens the default: customer-facing AI is high risk, the financial threshold drops to 250, model-risk validation, adverse action reasons, third-party exit planning, complaint monitoring and communications record-keeping are added, and the high tier requires a larger golden set and compliance sign-off. Place it at .ai-governance/policy.json in a workspace. Each control maps to the requirements it addresses, adding SR 26-2 (which replaced SR 11-7), DORA, ECOA and Regulation B, SEC and FINRA record-keeping and the FCA Consumer Duty to the default crosswalk; the mappings are informative, not legal advice.",
   "default_tier": "minimal",
   "autonomy_levels": [
     {
@@ -560,175 +560,923 @@
       "id": "GOV-01",
       "name": "AI inventory registration",
       "description": "Register the use case in the AI inventory with an accountable owner, tier and status.",
-      "evidence": "Inventory entry ID"
+      "evidence": "Inventory entry ID",
+      "mappings": [
+        {
+          "framework": "EU AI Act",
+          "reference": "Art. 49",
+          "note": "Registration of high-risk AI systems in the EU database; the inventory holds the data"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "GOVERN 1.6",
+          "note": "Mechanisms to inventory AI systems"
+        },
+        {
+          "framework": "ISO/IEC 42001:2023",
+          "reference": "A.3.2",
+          "note": "AI roles and responsibilities, including the accountable owner"
+        },
+        {
+          "framework": "SR 26-2",
+          "reference": "VI. Governance and controls",
+          "note": "Model inventory with enough information to understand model risks"
+        }
+      ]
     },
     {
       "id": "GOV-02",
       "name": "Periodic re-certification",
       "description": "Repeat the gate review at the tier's cadence and after any material change.",
-      "evidence": "Dated re-certification record"
+      "evidence": "Dated re-certification record",
+      "mappings": [
+        {
+          "framework": "EU AI Act",
+          "reference": "Art. 9",
+          "note": "Risk management as a continuous process with regular systematic review"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "GOVERN 1.5",
+          "note": "Ongoing monitoring and periodic review at a defined frequency"
+        },
+        {
+          "framework": "ISO/IEC 42001:2023",
+          "reference": "Clause 8.2",
+          "note": "AI risk assessment at planned intervals or when significant changes occur"
+        },
+        {
+          "framework": "SR 26-2",
+          "reference": "V. Model validation and monitoring",
+          "note": "Validation timing and frequency set by model purpose, changes and materiality"
+        }
+      ]
     },
     {
       "id": "GOV-03",
       "name": "Approver sign-off",
       "description": "Every approver role required for the tier signs before launch.",
-      "evidence": "Signed launch readiness review"
+      "evidence": "Signed launch readiness review",
+      "mappings": [
+        {
+          "framework": "EU AI Act",
+          "reference": "Art. 17",
+          "note": "Quality management system, including an accountability framework"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "GOVERN 2.1",
+          "note": "Roles, responsibilities and lines of communication documented"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "MANAGE 1.1",
+          "note": "Decision on whether development or deployment should proceed"
+        },
+        {
+          "framework": "ISO/IEC 42001:2023",
+          "reference": "A.6.2.5",
+          "note": "AI system deployment: requirements met before deployment"
+        },
+        {
+          "framework": "SR 26-2",
+          "reference": "VI. Governance and controls",
+          "note": "Roles and responsibilities with well-defined accountability"
+        }
+      ]
     },
     {
       "id": "EVAL-01",
       "name": "Offline evaluation",
       "description": "Held-out golden set at the tier's size and pass-rate minimums, with zero critical failures.",
-      "evidence": "Eval report with eval-set version"
+      "evidence": "Eval report with eval-set version",
+      "mappings": [
+        {
+          "framework": "EU AI Act",
+          "reference": "Art. 9",
+          "note": "Testing against prior defined metrics and probabilistic thresholds"
+        },
+        {
+          "framework": "EU AI Act",
+          "reference": "Art. 15",
+          "note": "Appropriate level of accuracy"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "MEASURE 2.3",
+          "note": "Performance measured for conditions similar to deployment"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "MEASURE 2.5",
+          "note": "System demonstrated to be valid and reliable"
+        },
+        {
+          "framework": "ISO/IEC 42001:2023",
+          "reference": "A.6.2.4",
+          "note": "AI system verification and validation"
+        },
+        {
+          "framework": "SR 26-2",
+          "reference": "IV. Model development and model use",
+          "note": "Model testing evaluates whether the model performs as intended"
+        }
+      ]
     },
     {
       "id": "EVAL-02",
       "name": "Adversarial and red-team testing",
       "description": "Prompt injection, jailbreak and abuse testing proportionate to exposure.",
-      "evidence": "Red-team report and fixes"
+      "evidence": "Red-team report and fixes",
+      "mappings": [
+        {
+          "framework": "EU AI Act",
+          "reference": "Art. 15",
+          "note": "Resilience against attempts to exploit vulnerabilities, such as adversarial examples"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "MEASURE 2.7",
+          "note": "Security and resilience evaluated and documented"
+        },
+        {
+          "framework": "ISO/IEC 42001:2023",
+          "reference": "A.6.2.4",
+          "note": "AI system verification and validation"
+        },
+        {
+          "framework": "DORA",
+          "reference": "Art. 24",
+          "note": "Digital operational resilience testing programme"
+        }
+      ]
     },
     {
       "id": "EVAL-03",
       "name": "Fairness evaluation",
       "description": "Pass rates compared across relevant user segments, languages and dialects.",
-      "evidence": "Segment-level eval results and accepted gaps"
+      "evidence": "Segment-level eval results and accepted gaps",
+      "mappings": [
+        {
+          "framework": "EU AI Act",
+          "reference": "Art. 10",
+          "note": "Data governance, including examination for possible biases"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "MEASURE 2.11",
+          "note": "Fairness and bias evaluated and documented"
+        },
+        {
+          "framework": "ISO/IEC 42001:2023",
+          "reference": "A.5.4",
+          "note": "Assessing impact on individuals or groups of individuals"
+        },
+        {
+          "framework": "ECOA / Regulation B",
+          "reference": "12 CFR 1002.4(a)",
+          "note": "No discrimination on a prohibited basis in any aspect of a credit transaction"
+        },
+        {
+          "framework": "FCA Consumer Duty",
+          "reference": "PRIN 2A.9",
+          "note": "Monitoring of consumer outcomes, including differences between groups of customers"
+        }
+      ]
     },
     {
       "id": "EVAL-04",
       "name": "Continuous evaluation",
       "description": "The eval suite runs on every prompt, model, retrieval or tool change and blocks releases below threshold.",
-      "evidence": "CI configuration and recent run"
+      "evidence": "CI configuration and recent run",
+      "mappings": [
+        {
+          "framework": "EU AI Act",
+          "reference": "Art. 15",
+          "note": "Consistent performance throughout the lifecycle"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "MEASURE 2.3",
+          "note": "Performance criteria measured and demonstrated, re-run on every change"
+        },
+        {
+          "framework": "ISO/IEC 42001:2023",
+          "reference": "A.6.2.4",
+          "note": "AI system verification and validation"
+        },
+        {
+          "framework": "SR 26-2",
+          "reference": "V. Model validation and monitoring",
+          "note": "Ongoing monitoring of whether the model performs as expected"
+        }
+      ]
     },
     {
       "id": "HUM-01",
       "name": "Human review of every output",
       "description": "A person checks each output before it is used or sent.",
-      "evidence": "UX flow showing the review step"
+      "evidence": "UX flow showing the review step",
+      "mappings": [
+        {
+          "framework": "EU AI Act",
+          "reference": "Art. 14",
+          "note": "Human oversight"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "MAP 3.5",
+          "note": "Processes for human oversight defined, assessed and documented"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "GOVERN 3.2",
+          "note": "Roles for human-AI configurations and oversight"
+        },
+        {
+          "framework": "ISO/IEC 42001:2023",
+          "reference": "A.9.2",
+          "note": "Processes for responsible use of AI systems"
+        }
+      ]
     },
     {
       "id": "HUM-02",
       "name": "Human approval of every action",
       "description": "Each action is approved by a person before it executes.",
-      "evidence": "Approval flow and audit records"
+      "evidence": "Approval flow and audit records",
+      "mappings": [
+        {
+          "framework": "EU AI Act",
+          "reference": "Art. 14",
+          "note": "Human oversight, including the ability to override or reverse an output"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "MAP 3.5",
+          "note": "Processes for human oversight defined, assessed and documented"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "GOVERN 3.2",
+          "note": "Roles for human-AI configurations and oversight"
+        },
+        {
+          "framework": "ISO/IEC 42001:2023",
+          "reference": "A.9.2",
+          "note": "Processes for responsible use of AI systems"
+        }
+      ]
     },
     {
       "id": "HUM-03",
       "name": "Sampled production review",
       "description": "A weekly sample of production outputs is reviewed against the eval rubric.",
-      "evidence": "Review log and scores"
+      "evidence": "Review log and scores",
+      "mappings": [
+        {
+          "framework": "EU AI Act",
+          "reference": "Art. 26",
+          "note": "Deployers monitor the operation of high-risk AI systems"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "MEASURE 2.4",
+          "note": "Functionality and behaviour monitored in production"
+        },
+        {
+          "framework": "ISO/IEC 42001:2023",
+          "reference": "A.6.2.6",
+          "note": "AI system operation and monitoring"
+        },
+        {
+          "framework": "SR 26-2",
+          "reference": "V. Model validation and monitoring",
+          "note": "Outcomes analysis compares outputs with real-world outcomes"
+        }
+      ]
     },
     {
       "id": "TRN-01",
       "name": "AI disclosure",
       "description": "People are told when they are interacting with AI or reading AI-generated content.",
-      "evidence": "UI copy and screenshots"
+      "evidence": "UI copy and screenshots",
+      "mappings": [
+        {
+          "framework": "EU AI Act",
+          "reference": "Art. 50",
+          "note": "Telling people they are interacting with AI; marking and disclosing AI-generated content"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "MEASURE 2.8",
+          "note": "Transparency and accountability risks examined"
+        },
+        {
+          "framework": "ISO/IEC 42001:2023",
+          "reference": "A.8.2",
+          "note": "System documentation and information for users"
+        },
+        {
+          "framework": "FCA Consumer Duty",
+          "reference": "PRIN 2A.5",
+          "note": "Consumer understanding outcome, including testing and monitoring communications"
+        }
+      ]
     },
     {
       "id": "TRN-02",
       "name": "Explanation and contestability",
       "description": "Affected people can get an explanation and ask for a human review of the outcome.",
-      "evidence": "Appeal process and response times"
+      "evidence": "Appeal process and response times",
+      "mappings": [
+        {
+          "framework": "EU AI Act",
+          "reference": "Art. 86",
+          "note": "Right to explanation of individual decision-making"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "MEASURE 2.9",
+          "note": "Model explained and output interpreted in context"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "MEASURE 3.3",
+          "note": "Feedback processes to report problems and appeal outcomes"
+        },
+        {
+          "framework": "ISO/IEC 42001:2023",
+          "reference": "A.8.3",
+          "note": "External reporting: interested parties can report adverse impacts"
+        },
+        {
+          "framework": "GDPR",
+          "reference": "Art. 22",
+          "note": "Human intervention and the right to contest solely automated decisions"
+        },
+        {
+          "framework": "FCA Consumer Duty",
+          "reference": "PRIN 2A.6",
+          "note": "Consumer support outcome"
+        }
+      ]
     },
     {
       "id": "TRN-03",
       "name": "Adverse action reasons",
       "description": "When AI output contributes to declining, reducing or repricing credit, insurance or another service, the person receives the specific principal reasons that actually drove the outcome, traceable to the inputs used, within the regulatory deadline (for example ECOA and Regulation B, or FCRA, in the US). Generic reasons are not acceptable.",
-      "evidence": "Reason-code mapping, sample notices and compliance sign-off"
+      "evidence": "Reason-code mapping, sample notices and compliance sign-off",
+      "mappings": [
+        {
+          "framework": "ECOA / Regulation B",
+          "reference": "12 CFR 1002.9",
+          "note": "Notice of action taken, including a statement of specific reasons"
+        },
+        {
+          "framework": "FCRA",
+          "reference": "Section 615(a)",
+          "note": "Adverse action notice when a consumer report is used"
+        },
+        {
+          "framework": "EU AI Act",
+          "reference": "Art. 86",
+          "note": "Right to explanation of individual decision-making"
+        },
+        {
+          "framework": "GDPR",
+          "reference": "Art. 22",
+          "note": "Safeguards for solely automated decisions"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "MEASURE 2.9",
+          "note": "Model explained and output interpreted in context"
+        }
+      ]
     },
     {
       "id": "SEC-01",
       "name": "Prompt-injection defences",
       "description": "Retrieved, tool and user-supplied content is treated as untrusted data and cannot change goals or permissions.",
-      "evidence": "Design review and injection test results"
+      "evidence": "Design review and injection test results",
+      "mappings": [
+        {
+          "framework": "EU AI Act",
+          "reference": "Art. 15",
+          "note": "Cybersecurity, including resilience against attempts to alter use or outputs"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "MEASURE 2.7",
+          "note": "Security and resilience evaluated and documented"
+        },
+        {
+          "framework": "OWASP Top 10 for LLM Applications",
+          "reference": "LLM01:2025",
+          "note": "Prompt Injection"
+        }
+      ]
     },
     {
       "id": "SEC-02",
       "name": "Least-privilege actions",
       "description": "Tools are scoped to the task, with per-action and daily limits and confirmation for irreversible actions.",
-      "evidence": "Tool permission matrix and limits configuration"
+      "evidence": "Tool permission matrix and limits configuration",
+      "mappings": [
+        {
+          "framework": "EU AI Act",
+          "reference": "Art. 15",
+          "note": "Robustness, including fail-safe measures"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "MEASURE 2.6",
+          "note": "Residual risk within tolerance; the system can fail safely"
+        },
+        {
+          "framework": "ISO/IEC 42001:2023",
+          "reference": "A.9.4",
+          "note": "Intended use of the AI system"
+        },
+        {
+          "framework": "OWASP Top 10 for LLM Applications",
+          "reference": "LLM06:2025",
+          "note": "Excessive Agency"
+        }
+      ]
     },
     {
       "id": "SEC-03",
       "name": "Output handling",
       "description": "Model output is sanitised before it is rendered, executed or passed to another system.",
-      "evidence": "Code review and tests"
+      "evidence": "Code review and tests",
+      "mappings": [
+        {
+          "framework": "EU AI Act",
+          "reference": "Art. 15",
+          "note": "Cybersecurity"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "MEASURE 2.7",
+          "note": "Security and resilience evaluated and documented"
+        },
+        {
+          "framework": "OWASP Top 10 for LLM Applications",
+          "reference": "LLM05:2025",
+          "note": "Improper Output Handling"
+        }
+      ]
     },
     {
       "id": "PRV-01",
       "name": "Privacy review",
       "description": "Privacy review or data protection impact assessment completed.",
-      "evidence": "Signed review or DPIA"
+      "evidence": "Signed review or DPIA",
+      "mappings": [
+        {
+          "framework": "EU AI Act",
+          "reference": "Art. 26",
+          "note": "Deployers use the provider's information to carry out a GDPR data protection impact assessment"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "MEASURE 2.10",
+          "note": "Privacy risk examined and documented"
+        },
+        {
+          "framework": "ISO/IEC 42001:2023",
+          "reference": "A.5.2",
+          "note": "AI system impact assessment process"
+        },
+        {
+          "framework": "GDPR",
+          "reference": "Art. 35",
+          "note": "Data protection impact assessment"
+        }
+      ]
     },
     {
       "id": "PRV-02",
       "name": "Data minimisation and retention",
       "description": "Only necessary data is sent; personal data is redacted from logs; retention limits are enforced.",
-      "evidence": "Data flow diagram and retention settings"
+      "evidence": "Data flow diagram and retention settings",
+      "mappings": [
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "MEASURE 2.10",
+          "note": "Privacy risk examined and documented"
+        },
+        {
+          "framework": "GDPR",
+          "reference": "Art. 5(1)(c)",
+          "note": "Data minimisation"
+        },
+        {
+          "framework": "GDPR",
+          "reference": "Art. 5(1)(e)",
+          "note": "Storage limitation"
+        },
+        {
+          "framework": "OWASP Top 10 for LLM Applications",
+          "reference": "LLM02:2025",
+          "note": "Sensitive Information Disclosure"
+        }
+      ]
     },
     {
       "id": "PRV-03",
       "name": "Vendor data terms",
       "description": "Model vendor terms reviewed for training use, retention and residency.",
-      "evidence": "Vendor assessment record"
+      "evidence": "Vendor assessment record",
+      "mappings": [
+        {
+          "framework": "EU AI Act",
+          "reference": "Art. 25",
+          "note": "Responsibilities along the AI value chain"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "GOVERN 6.1",
+          "note": "Policies for risks from third-party entities"
+        },
+        {
+          "framework": "ISO/IEC 42001:2023",
+          "reference": "A.10.3",
+          "note": "Suppliers"
+        },
+        {
+          "framework": "GDPR",
+          "reference": "Art. 28",
+          "note": "Processor contracts"
+        },
+        {
+          "framework": "GDPR",
+          "reference": "Chapter V",
+          "note": "Transfers of personal data to third countries"
+        },
+        {
+          "framework": "DORA",
+          "reference": "Art. 30",
+          "note": "Key contractual provisions, including data processing locations"
+        }
+      ]
     },
     {
       "id": "PRV-04",
       "name": "Permission-aware retrieval",
       "description": "Users can only retrieve content they are entitled to see, enforced at query time.",
-      "evidence": "Access-control tests"
+      "evidence": "Access-control tests",
+      "mappings": [
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "MEASURE 2.10",
+          "note": "Privacy risk examined and documented"
+        },
+        {
+          "framework": "GDPR",
+          "reference": "Art. 32",
+          "note": "Security of processing, including access control"
+        },
+        {
+          "framework": "OWASP Top 10 for LLM Applications",
+          "reference": "LLM08:2025",
+          "note": "Vector and Embedding Weaknesses"
+        }
+      ]
     },
     {
       "id": "TPR-01",
       "name": "Third-party dependency and exit plan",
       "description": "Each external model or AI platform is onboarded through third-party risk management: due diligence, a register entry, and contract rights to audit, incident notification and advance notice of model changes. A documented, tested exit plan names the substitute model or the non-AI fallback and the time needed to switch (for example DORA, or US interagency third-party risk guidance).",
-      "evidence": "Third-party register entry, contract clauses and exit-plan test record"
+      "evidence": "Third-party register entry, contract clauses and exit-plan test record",
+      "mappings": [
+        {
+          "framework": "DORA",
+          "reference": "Art. 28",
+          "note": "ICT third-party risk, including the register of information and exit strategies"
+        },
+        {
+          "framework": "DORA",
+          "reference": "Art. 30",
+          "note": "Key contractual provisions, including audit, termination and exit terms"
+        },
+        {
+          "framework": "Interagency third-party guidance (2023)",
+          "reference": "Third-party relationship life cycle",
+          "note": "Due diligence, contract negotiation, ongoing monitoring and termination"
+        },
+        {
+          "framework": "SR 26-2",
+          "reference": "VII. Vendor and other third-party products",
+          "note": "Vendor and third-party models and data"
+        },
+        {
+          "framework": "EU AI Act",
+          "reference": "Art. 25",
+          "note": "Responsibilities along the AI value chain"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "GOVERN 6.1",
+          "note": "Policies for risks from third-party entities"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "GOVERN 6.2",
+          "note": "Contingency processes for failures in third-party AI systems"
+        },
+        {
+          "framework": "ISO/IEC 42001:2023",
+          "reference": "A.10.2",
+          "note": "Allocation of responsibilities"
+        },
+        {
+          "framework": "ISO/IEC 42001:2023",
+          "reference": "A.10.3",
+          "note": "Suppliers"
+        }
+      ]
     },
     {
       "id": "OPS-01",
       "name": "Monitoring and alerting",
       "description": "Quality, safety, cost and latency are monitored with alert thresholds and owners.",
-      "evidence": "Dashboard and alert configuration"
+      "evidence": "Dashboard and alert configuration",
+      "mappings": [
+        {
+          "framework": "EU AI Act",
+          "reference": "Art. 72",
+          "note": "Post-market monitoring by providers"
+        },
+        {
+          "framework": "EU AI Act",
+          "reference": "Art. 26",
+          "note": "Deployers monitor the operation of high-risk AI systems"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "MEASURE 2.4",
+          "note": "Functionality and behaviour monitored in production"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "MANAGE 4.1",
+          "note": "Post-deployment monitoring plans implemented"
+        },
+        {
+          "framework": "ISO/IEC 42001:2023",
+          "reference": "A.6.2.6",
+          "note": "AI system operation and monitoring"
+        },
+        {
+          "framework": "SR 26-2",
+          "reference": "V. Model validation and monitoring",
+          "note": "Ongoing model monitoring"
+        }
+      ]
     },
     {
       "id": "OPS-02",
       "name": "Kill switch and fallback",
       "description": "The AI path can be switched off quickly, routing work to a tested non-AI fallback.",
-      "evidence": "Test record of the last switch-off"
+      "evidence": "Test record of the last switch-off",
+      "mappings": [
+        {
+          "framework": "EU AI Act",
+          "reference": "Art. 14",
+          "note": "Human oversight, including a 'stop' button or similar procedure"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "MANAGE 2.4",
+          "note": "Mechanisms to supersede, disengage or deactivate AI systems"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "MANAGE 2.1",
+          "note": "Viable non-AI alternatives considered"
+        },
+        {
+          "framework": "DORA",
+          "reference": "Art. 11",
+          "note": "Response and recovery, including ICT business continuity"
+        }
+      ]
     },
     {
       "id": "OPS-03",
       "name": "Audit logging",
       "description": "Inputs, outputs, decisions and approvals are logged with retention per policy.",
-      "evidence": "Log schema and retention settings"
+      "evidence": "Log schema and retention settings",
+      "mappings": [
+        {
+          "framework": "EU AI Act",
+          "reference": "Art. 12",
+          "note": "Record-keeping: automatic recording of events"
+        },
+        {
+          "framework": "EU AI Act",
+          "reference": "Art. 26",
+          "note": "Deployers keep automatically generated logs for at least six months"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "MEASURE 2.8",
+          "note": "Transparency and accountability risks examined"
+        },
+        {
+          "framework": "ISO/IEC 42001:2023",
+          "reference": "A.6.2.8",
+          "note": "AI system recording of event logs"
+        },
+        {
+          "framework": "ECOA / Regulation B",
+          "reference": "12 CFR 1002.12",
+          "note": "Record retention for credit applications and actions taken"
+        }
+      ]
     },
     {
       "id": "OPS-04",
       "name": "Incident runbook",
       "description": "Runbook with AI-specific severities, containment steps and notification contacts.",
-      "evidence": "Runbook link and rehearsal date"
+      "evidence": "Runbook link and rehearsal date",
+      "mappings": [
+        {
+          "framework": "EU AI Act",
+          "reference": "Art. 73",
+          "note": "Reporting of serious incidents"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "MANAGE 4.3",
+          "note": "Incidents and errors communicated, tracked and responded to"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "MANAGE 2.3",
+          "note": "Response to and recovery from previously unknown risks"
+        },
+        {
+          "framework": "ISO/IEC 42001:2023",
+          "reference": "A.8.4",
+          "note": "Communication of incidents"
+        },
+        {
+          "framework": "DORA",
+          "reference": "Art. 17",
+          "note": "ICT-related incident management process"
+        },
+        {
+          "framework": "DORA",
+          "reference": "Art. 19",
+          "note": "Reporting of major ICT-related incidents"
+        }
+      ]
     },
     {
       "id": "OPS-05",
       "name": "Model change management",
       "description": "Exact model versions are pinned; any change is evaluated and rolled out like a release.",
-      "evidence": "Configuration and change log"
+      "evidence": "Configuration and change log",
+      "mappings": [
+        {
+          "framework": "EU AI Act",
+          "reference": "Art. 17",
+          "note": "Quality management system, including the management of modifications"
+        },
+        {
+          "framework": "EU AI Act",
+          "reference": "Art. 43",
+          "note": "New conformity assessment after a substantial modification"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "MANAGE 4.1",
+          "note": "Post-deployment plans include change management"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "MANAGE 3.2",
+          "note": "Pre-trained models monitored as part of regular maintenance"
+        },
+        {
+          "framework": "ISO/IEC 42001:2023",
+          "reference": "A.6.2.4",
+          "note": "Changes verified and validated before release"
+        },
+        {
+          "framework": "SR 26-2",
+          "reference": "V. Model validation and monitoring",
+          "note": "Validation frequency reflects the frequency and scope of model changes"
+        },
+        {
+          "framework": "DORA",
+          "reference": "Art. 9",
+          "note": "Protection and prevention, including ICT change management"
+        }
+      ]
     },
     {
       "id": "OPS-06",
       "name": "Complaint monitoring",
       "description": "Complaints and disputes involving the AI feature are tagged as such, root-caused and trended with an alert threshold; recurring themes become eval cases and repeated harm is handled as an incident (for example FCA Consumer Duty outcome monitoring, or CFPB complaint handling).",
-      "evidence": "Complaint taxonomy, monthly trend report and linked eval cases"
+      "evidence": "Complaint taxonomy, monthly trend report and linked eval cases",
+      "mappings": [
+        {
+          "framework": "FCA Consumer Duty",
+          "reference": "PRIN 2A.9",
+          "note": "Monitoring of consumer outcomes, including the root causes of poor outcomes"
+        },
+        {
+          "framework": "FCA Handbook",
+          "reference": "DISP 1.3.3R",
+          "note": "Analysing complaints to find and fix recurring or systemic problems"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "MEASURE 3.3",
+          "note": "Feedback processes to report problems and appeal outcomes"
+        },
+        {
+          "framework": "ISO/IEC 42001:2023",
+          "reference": "A.8.3",
+          "note": "External reporting: interested parties can report adverse impacts"
+        }
+      ]
     },
     {
       "id": "OPS-07",
       "name": "Communications record-keeping",
       "description": "AI-generated or AI-assisted communications with customers or the public are kept in the firm's tamper-evident books-and-records archive with the model version and any human edits, for the regulatory period, and are subject to supervisory review (for example SEC Rule 17a-4 and FINRA Rule 4511, or MiFID II record-keeping). For these records, regulatory retention overrides the retention limits in PRV-02.",
-      "evidence": "Archive configuration, retention schedule and supervisory review sample"
+      "evidence": "Archive configuration, retention schedule and supervisory review sample",
+      "mappings": [
+        {
+          "framework": "SEC",
+          "reference": "Rule 17a-4(b)(4)",
+          "note": "Communications relating to the business, kept for at least three years"
+        },
+        {
+          "framework": "SEC",
+          "reference": "Rule 17a-4(f)",
+          "note": "Electronic recordkeeping system requirements"
+        },
+        {
+          "framework": "FINRA",
+          "reference": "Rule 4511",
+          "note": "Make and preserve books and records"
+        },
+        {
+          "framework": "FINRA",
+          "reference": "Rule 3110(b)(4)",
+          "note": "Supervisory review of correspondence and internal communications"
+        },
+        {
+          "framework": "FINRA",
+          "reference": "Regulatory Notice 24-09",
+          "note": "Existing obligations apply to generative AI"
+        },
+        {
+          "framework": "MiFID II",
+          "reference": "Art. 16(7)",
+          "note": "Records of telephone conversations and electronic communications"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "GOVERN 1.1",
+          "note": "Legal and regulatory requirements understood, managed and documented"
+        }
+      ]
     },
     {
       "id": "MRM-01",
       "name": "Independent model validation",
       "description": "Model risk management validates the model, data and monitoring before launch and annually.",
-      "evidence": "Signed validation report"
+      "evidence": "Signed validation report",
+      "mappings": [
+        {
+          "framework": "SR 26-2",
+          "reference": "V. Model validation and monitoring",
+          "note": "Validation, generally before first use; generative and agentic AI are outside the formal scope"
+        },
+        {
+          "framework": "SR 26-2",
+          "reference": "III. Overview of model risk and model risk management",
+          "note": "Effective challenge by experts with sufficient independence"
+        },
+        {
+          "framework": "NIST AI RMF 1.0",
+          "reference": "MEASURE 1.3",
+          "note": "Independent assessors involved in regular assessments"
+        },
+        {
+          "framework": "ISO/IEC 42001:2023",
+          "reference": "A.6.2.4",
+          "note": "AI system verification and validation"
+        }
+      ]
     }
   ],
   "autonomy_promotion": {

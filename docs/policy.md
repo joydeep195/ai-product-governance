@@ -22,7 +22,7 @@ Every result names the policy ID, version and source, so artifacts are traceable
 | `questions` | The questionnaire (boolean, number, enum, multiselect) |
 | `rules` | Conditions that raise the tier; the highest triggered tier wins |
 | `conditional_controls` | Controls added by specific answers regardless of tier (for example permission-aware retrieval when RAG is used) |
-| `controls` | The control catalogue with the evidence each control requires |
+| `controls` | The control catalogue with the evidence each control requires and, optionally, the framework requirements it maps to |
 | `autonomy_levels`, `autonomy_promotion` | The L0-L5 ladder and the evidence needed to move up |
 | `incident_severities` | SEV definitions used by Gate 5 |
 
@@ -72,6 +72,43 @@ Validate before you publish:
 python skills/ai-product-governance/scripts/risk_tier.py --validate-policy --policy path/to/policy.json
 aipg validate          # also checks every policy under examples/ and warns if a higher tier is weaker than a lower one
 ```
+
+## Regulatory crosswalk
+
+Each control can list the external requirements it addresses, so an auditor can trace a control to the regulation
+they are asking about:
+
+```json
+{ "id": "EVAL-03", "name": "Fairness evaluation", "...": "...",
+  "mappings": [
+    { "framework": "EU AI Act", "reference": "Art. 10", "note": "Data governance, including examination for possible biases" },
+    { "framework": "NIST AI RMF 1.0", "reference": "MEASURE 2.11", "note": "Fairness and bias evaluated and documented" },
+    { "framework": "ISO/IEC 42001:2023", "reference": "A.5.4", "note": "Assessing impact on individuals or groups of individuals" }
+  ] }
+```
+
+`risk_tier.py` copies the mappings onto every required control in its JSON output and adds a "Maps to" column to
+the Markdown table. `framework` and `reference` are required; `note` is optional.
+
+| Policy | Frameworks mapped |
+|---|---|
+| Default | EU AI Act (Regulation (EU) 2024/1689), NIST AI RMF 1.0 subcategories, ISO/IEC 42001:2023 Annex A controls (and clause 8.2), GDPR for the privacy controls, OWASP Top 10 for LLM Applications 2025 for the security controls |
+| Financial services | All of the above, plus the US agencies' model risk guidance SR 26-2 (OCC Bulletin 2026-13), DORA (Regulation (EU) 2022/2554), ECOA and Regulation B (12 CFR 1002), FCRA, SEC Rule 17a-4, FINRA rules, MiFID II, the FCA Consumer Duty (PRIN 2A) and DISP, and the 2023 US interagency third-party guidance |
+
+SR 26-2 replaced SR 11-7 in April 2026 and places generative and agentic AI models outside its formal scope,
+expecting a bank's own risk management and governance practices to cover them; the policy cites it for the
+model-risk disciplines (inventory, validation, monitoring, vendor models) that `MRM-01` and related controls apply.
+
+References cite an article, clause, rule or subcategory number only where it could be cited with confidence, and
+name the section otherwise (the interagency guidance's "Third-party relationship life cycle"). Tests check every
+NIST AI RMF reference against the 72 subcategories, every ISO/IEC 42001 reference against the 38 Annex A controls
+or a main clause, and every EU AI Act article against the Act's 113 articles.
+
+**The mappings are informative, not legal advice.** They say which requirement a control is designed to address,
+not that the requirement applies to a use case, nor that the control alone satisfies it. Applicability depends on
+your role (for example provider or deployer under the EU AI Act), jurisdiction, products and dates of application.
+Have legal and compliance teams review and own the crosswalk in your organisation's policy, and add your own
+frameworks (an internal control library, SOC 2, a sector regulator) in the same shape.
 
 ## Distributing a policy
 
