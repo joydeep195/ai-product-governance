@@ -69,14 +69,16 @@ sign-in or an API key.
 
 ## Quick start
 
-**Any Agent Skills tool:**
+Full per-tool instructions: **[docs/install.md](docs/install.md)**.
+
+**Any coding tool** (Claude Code, Codex, GitHub Copilot, Cursor, Gemini CLI, Windsurf and more):
 
 ```bash
 npx skills add joydeep195/ai-product-governance
 ```
 
-Or copy `skills/ai-product-governance/` into `.agents/skills/` (Codex, Copilot, Cursor, Gemini CLI),
-`.github/skills/` (Copilot) or `.claude/skills/` (Claude Code).
+No Node.js? Copy the `skills/ai-product-governance/` folder into your tool's skills folder, for example
+`.agents/skills/` in your repository (Codex, Copilot, Cursor, Gemini CLI) or `.claude/skills/` (Claude Code).
 
 **Claude Code plugin:**
 
