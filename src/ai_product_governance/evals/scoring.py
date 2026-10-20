@@ -162,10 +162,54 @@ class GateResult:
     name: str
     passed: bool
     detail: str
+    skipped: bool = False  # the gate could not be checked; a skipped gate never fails the run
 
 
-def evaluate_gates(arms: list[ArmSummary], gates: Gates, baseline: dict[str, float] | None = None) -> list[GateResult]:
-    """Apply the quality gates per subject. `baseline` maps subject id -> previous with-skill mean score."""
+@dataclass(frozen=True)
+class BaselineScore:
+    """One subject's with-skill mean score in a baseline results.json."""
+
+    subject: str
+    mean_score: float
+    provider: str = ""  # how the baseline was produced: a provider such as "claude-code", or a kit mode
+    stands_in_for: str = ""  # the automated subject id a kit result is compared as, if it names one
+    indicative: bool = False  # an agent-run result: indicative evidence, not audited
+
+
+def parse_baseline(data: dict[str, Any]) -> list[BaselineScore]:
+    """The with-skill scores in a results.json, with what its `subjects` list says about how they were produced."""
+    subjects = {str(s.get("id")): s for s in data.get("subjects", []) if isinstance(s, dict)}
+    scores = []
+    for arm in data.get("arms", []):
+        if arm.get("arm") != "with-skill":
+            continue
+        described = subjects.get(str(arm["subject"]), {})
+        scores.append(
+            BaselineScore(
+                subject=str(arm["subject"]),
+                mean_score=float(arm["mean_score"]),
+                provider=str(described.get("provider") or ""),
+                stands_in_for=str(described.get("stands_in_for") or ""),
+                indicative=bool(described.get("indicative")),
+            )
+        )
+    return scores
+
+
+def match_baseline(subject: str, baseline: list[BaselineScore]) -> BaselineScore | None:
+    """The baseline score to compare `subject` with: the same subject id, else a kit result that stands in for it."""
+    exact = next((b for b in baseline if b.subject == subject), None)
+    return exact or next((b for b in baseline if b.stands_in_for == subject), None)
+
+
+def evaluate_gates(
+    arms: list[ArmSummary], gates: Gates, baseline: list[BaselineScore] | None = None
+) -> list[GateResult]:
+    """Apply the quality gates per subject.
+
+    With a `baseline` (from `--compare`), every subject gets a `max_regression` gate: checked against its match
+    (see `match_baseline`), or reported as skipped when nothing in the baseline matches it.
+    """
     results: list[GateResult] = []
     by_key = {(a.subject, a.arm): a for a in arms}
     for subject in sorted({a.subject for a in arms}):
@@ -196,14 +240,28 @@ def evaluate_gates(arms: list[ArmSummary], gates: Gates, baseline: dict[str, flo
                     subject, "min_delta", delta >= gates.min_delta, f"{delta:+.3f} (minimum {gates.min_delta:+.3f})"
                 )
             )
-        if baseline and subject in baseline:
-            drop = baseline[subject] - skill.mean_score
-            results.append(
-                GateResult(
-                    subject,
-                    "max_regression",
-                    drop <= gates.max_regression,
-                    f"{skill.mean_score:.3f} vs baseline {baseline[subject]:.3f} (maximum drop {gates.max_regression:.3f})",
-                )
-            )
+        if baseline is not None:
+            results.append(_regression_gate(subject, skill.mean_score, baseline, gates.max_regression))
     return results
+
+
+def _regression_gate(subject: str, score: float, baseline: list[BaselineScore], max_drop: float) -> GateResult:
+    match = match_baseline(subject, baseline)
+    if match is None:
+        found = ", ".join(repr(b.subject) for b in baseline) or "no with-skill results"
+        return GateResult(
+            subject,
+            "max_regression",
+            True,
+            f"not compared: no baseline subject matches {subject!r} (the baseline has {found})",
+            skipped=True,
+        )
+    origin = f" from {match.subject!r}" if match.subject != subject else ""
+    if match.indicative:
+        origin += f" ({match.provider} result, indicative)"
+    return GateResult(
+        subject,
+        "max_regression",
+        match.mean_score - score <= max_drop,
+        f"{score:.3f} vs baseline {match.mean_score:.3f}{origin} (maximum drop {max_drop:.3f})",
+    )

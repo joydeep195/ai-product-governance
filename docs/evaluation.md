@@ -124,7 +124,7 @@ Each run writes `evals/results/<run id>/`:
 | File | Contents |
 |---|---|
 | `report.md` | Summary by subject and arm, gates, per-scenario scores, skill adherence, every failed criterion with the judge's rationale |
-| `results.json` | Every trial: response, verdicts, evidence, files read, scripts run, tokens, cost |
+| `results.json` | How each subject was produced, then every trial: response, verdicts, evidence, files read, scripts run, tokens, cost |
 | `junit.xml` | Gates and per-scenario results for CI dashboards |
 | `manifest.json` | Reproducibility: git commit, skill content hash, config hash, models, SDK versions |
 
@@ -138,7 +138,70 @@ cut the run short):
 | Mean with-skill score | ≥ 0.80 |
 | Critical failures with the skill | 0 |
 | Uplift over the baseline arm | ≥ 0.00 |
-| Drop against `evals/baselines/latest.json` | ≤ 0.05 |
+| Drop against `evals/baselines/latest.json` (with `--compare`; see below) | ≤ 0.05 |
+
+## Baselines and regressions
+
+`aipg eval --compare <results.json>` adds a `max_regression` gate for every subject: it fails when the subject's
+with-skill mean score is more than `gates.max_regression` below the baseline's. CI passes
+`--compare evals/baselines/latest.json`.
+
+**Which baseline score a subject is compared with.** First, the baseline's results for the same subject id (an
+automated run of `claude-code` against an earlier automated run of `claude-code`). Failing that, a kit result that
+declares it stands in for that subject id (see below). A same-id match always wins.
+
+**When nothing matches, the gate is skipped, visibly.** The plan printed before any model call shows a
+`regression check:` line per subject, saying what it will be compared with or that it will be skipped. After the
+run, a skipped gate is printed as a warning, shown as `skipped` in `report.md` (whose verdict line then reads, for
+example, `PASS (1 skipped)`) and written as `<skipped>` in `junit.xml`. A skipped gate never fails the run. A
+baseline file that cannot be read stops the run with exit code 2 before any model call.
+
+**Saving a baseline.** After reviewing a run, `aipg eval --update-baseline` or
+`aipg eval-kit score <kit> --update-baseline` copies that run's `results.json` to `evals/baselines/latest.json`,
+byte for byte. `results.json` records how each subject was produced (`subjects`: id, provider, model and effort;
+for kits also `indicative` and `stands_in_for`), so the baseline describes itself.
+
+**Using a kit as the baseline for an automated subject.** A kit's subject id is the tool label you gave it, such as
+`Claude Code (Claude Opus 5.5)`, which no automated subject matches. To compare an automated subject with it, name
+that subject when you score the kit:
+
+```bash
+aipg eval-kit score evals/kits/<kit id> --stands-in-for claude-code --update-baseline
+```
+
+Only do this when the kit ran in that subject's tool and model, such as an `/ai-eval` in Claude Code with Claude
+Opus 5.5 standing in for `claude-code`. The kit keeps its tool label as its subject id, and the gate names it and
+keeps the agent-run label: `1.000 vs baseline 1.000 from 'Claude Code (Claude Opus 5.5)' (agent-run result,
+indicative)`. An unknown subject id is refused.
+
+**Is comparing an agent-run kit with an automated run meaningful?** Partly. Both use the same scenarios, rubric,
+deterministic checks and gates, and by default both are graded blind by the model that answered. They still measure
+different things:
+
+- **Skill activation.** Agent-run with-skill sub-agents are told to read `SKILL.md`. The `claude-code` subject
+  decides on its own whether to load the skill, and that choice is part of what it measures. Agent-run with-skill
+  scores are therefore closer to an upper bound.
+- **Environment and effort.** Agent-run sub-agents inherit the session's effort level and environment (settings,
+  plugins, `CLAUDE.md`). Automated runs are isolated and use the configured effort (`max` answering, `high`
+  grading, for `claude-code`).
+- **Verification.** Nothing outside the tool checks that agent-run baseline sub-agents could not see the skill, or
+  that replies were saved unedited.
+
+So a drop against an agent-run baseline is a tripwire, not proof of a regression. CI enforces it like any other
+gate, so it gets noticed. When it fires, read the report. If a content change lowered the scores, that is a
+regression. If the drop comes from the host (the skill was not activated, or effort differs), it is a measurement
+difference. In that case, review the automated run and commit it with `aipg eval --update-baseline`: it becomes a
+like-for-like baseline that matches by subject id. Only a like-for-like automated comparison is audit-grade.
+
+**Why not match on the model, or map subjects on the command line?** A kit records a tool label, not a model id.
+Also, one model behind different hosts measures different things: `claude-code` (native skill loading, `max`
+effort) and `anthropic-api` (the emulator, `medium` effort) both serve Claude Opus 5.5. A command-line mapping would
+have to live in the CI workflow and be edited whenever the baseline changes. Recording the claim in the baseline
+keeps it next to the scores that reviewers approve.
+
+**In CI.** The committed baseline is an agent-run kit that stands in for `claude-code`, so the gate applies when CI
+runs the `claude-code` subject (the `CLAUDE_CODE_OAUTH_TOKEN` secret is set). Without that secret, CI uses the next
+ready subject, such as `anthropic-api`, and the report shows the gate as skipped.
 
 ## Cost
 

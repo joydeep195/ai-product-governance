@@ -248,11 +248,19 @@ def prepare_grading(kit_dir: Path, scenarios: list[Scenario]) -> Path:
 
 
 def score_kit(
-    kit_dir: Path, config: EvalConfig, skill: Skill, scenarios: list[Scenario]
+    kit_dir: Path, config: EvalConfig, skill: Skill, scenarios: list[Scenario], stands_in_for: str = ""
 ) -> tuple[dict[str, Path], list[GateResult]]:
+    """Score a graded kit.
+
+    With `stands_in_for` (a configured subject id), `aipg eval --compare` against these results compares that subject
+    with them (see docs/evaluation.md). The kit's own subject id stays its tool label.
+    """
     manifest = _load(kit_dir)
     if not manifest.get("grading"):
         raise KitError(f"Grading has not been prepared yet: run `aipg eval-kit grade {kit_dir.as_posix()}` first.")
+    if stands_in_for and stands_in_for not in {m.id for m in config.models}:
+        known = ", ".join(m.id for m in config.models)
+        raise KitError(f"Unknown subject id '{stands_in_for}' for --stands-in-for. Configured: {known}")
     items = {entry["id"]: KitItem(**entry) for entry in manifest["answers"]}
     by_id = {s.id: s for s in scenarios}
     tool = str(manifest.get("tool", "manual"))
@@ -281,6 +289,10 @@ def score_kit(
     cells = summarise(trials)
     arms = summarise_arms(cells)
     gates = evaluate_gates(arms, config.gates)
+    subject: dict[str, Any] = {"id": tool, "provider": mode, "model": tool, "effort": None}
+    subject["indicative"] = mode == AGENT_RUN
+    if stands_in_for:
+        subject["stands_in_for"] = stands_in_for
     report_manifest = {
         "run_id": manifest["kit_id"],
         "created_at": datetime.now(UTC).isoformat(timespec="seconds"),
@@ -288,7 +300,7 @@ def score_kit(
         "skill_version": manifest.get("skill_version", skill.version),
         "skill_sha256": manifest.get("skill_sha256", ""),
         "scenarios": manifest["scenarios"],
-        "subjects": [{"id": tool, "provider": mode, "model": tool, "effort": None}],
+        "subjects": [subject],
         "judge": {"id": f"{tool}-judge", "provider": mode, "model": tool, "effort": None},
         "judges": {tool: {"id": f"{tool}-judge", "provider": mode, "model": tool, "effort": None}},
         "arms": manifest["arms"],

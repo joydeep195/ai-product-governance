@@ -52,6 +52,8 @@ jobs:
           MAX_COST_USD: ${{ inputs.max_cost_usd || '15' }}
         run: |
           args=(--trials "$TRIALS" --max-cost-usd "$MAX_COST_USD" --out evals/results/ci)
+          # The regression gate applies to subjects the baseline matches (same id, or the subject a kit stands in
+          # for); any other subject's gate is reported as skipped. See docs/evaluation.md.
           if [ -f evals/baselines/latest.json ]; then
             args+=(--compare evals/baselines/latest.json)
           fi
