@@ -49,7 +49,8 @@ Claude plugin manifest always share one version; `aipg validate` enforces it.
   Applications where relevant. The financial-services example (2.5.0) adds SR 26-2 (which replaced SR 11-7),
   DORA, ECOA and Regulation B, FCRA, SEC Rule 17a-4, FINRA rules, MiFID II and the FCA Consumer Duty.
   `risk_tier.py` returns the mappings with each required control and adds a "Maps to" column to its Markdown
-  output. The mappings are informative, not legal advice.
+  output. The mappings are informative, not legal advice. The Gate 3 playbook and the risk-assessment template's
+  control plan now cite each control's mappings, and the playbook names SR 26-2 in place of SR 11-7.
 
 ### Documentation
 

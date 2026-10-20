@@ -469,8 +469,10 @@ Likelihood and impact on a 1–5 scale. Write `N/A — <reason>` for categories 
 - **Promotion criteria to the next level:**
 
 ## 4. Control plan
-| Control ID | Control | Required by (tier / conditional rule) | Implementation | Evidence | Owner (role) | Status |
-|---|---|---|---|---|---|---|
+Copy the control, "Required by" and "Maps to" values from the calculator output (write `-` in "Maps to" if the policy maps none). The framework references are informative, not legal advice.
+
+| Control ID | Control | Required by (tier / conditional rule) | Maps to | Implementation | Evidence | Owner (role) | Status |
+|---|---|---|---|---|---|---|---|
 
 ## 5. Approvers required
 | Role | Status |
