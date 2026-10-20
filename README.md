@@ -190,6 +190,45 @@ aipg eval-kit create       # chat-only tool (ChatGPT, Gemini, M365 Copilot)? cop
 Or skip the setup entirely: in an agentic tool, open this repository and run `/ai-eval` (or ask it to "evaluate
 the skill"). Your agent runs the suite in its own session, with a fresh sub-agent for every answer and grading.
 
+### Results
+
+The first published baseline is an agent-run `/ai-eval` on **Claude Code (Claude Opus 5.5)**, scored on
+20 October 2026 (run `20261018T191202Z`, skill v1.0.0). It covers all 10 scenarios × 2 arms × 1 trial, with every
+answer and every blind grading done by a fresh sub-agent of that tool.
+
+| Scenario | With skill | Baseline |
+|---|---|---|
+| cross-legal-boundary | 1.00 | 1.00 |
+| cross-rag-vs-finetune | 1.00 | 1.00 |
+| g0-deterministic-first | 1.00 | 1.00 |
+| g0-vague-ai-mandate | 1.00 | 0.89 |
+| g1-support-economics | 1.00 | 1.00 |
+| g2-meeting-notes-evals | 1.00 | 0.88 (critical failure) |
+| g3-hr-rag-risk | 1.00 | 0.86 |
+| g3-refund-agent-autonomy | 1.00 | 0.86 |
+| g4-claims-triage-launch | 1.00 | 0.86 |
+| g5-acceptance-regression | 1.00 | 0.86 |
+| **Mean** | **1.00** (100% pass, 0 critical) | **0.92** (90% pass, 1 critical) |
+
+Overall delta: **+0.08**, and every gate passes. Without the skill, the same model tolerated a small rate of
+fabricated CRM commitments, stated legal conclusions, did not call a money-moving agent high risk, did not give a
+clear No-go on an unready launch, did not add failing cases to the regression set, and left assumptions without
+owners.
+
+Read this as indicative evidence, not an audited result:
+
+- One tool answered and graded its own answers. Grading was blind to the arm, but nothing outside the tool checked
+  that the baseline sub-agents could not see the skill.
+- With one trial per cell there is no spread. The with-skill arm scored 1.00 on every scenario, so the suite may not
+  separate strong answers at the top for this model.
+- Two answer sub-agents were cut off by the plan's usage limit and rerun from scratch. One grader errored after it
+  had saved a complete verdict, and that verdict was kept.
+- The run is stored in [`evals/baselines/latest.json`](evals/baselines/latest.json) as standing in for the
+  `claude-code` subject, so CI's regression gate compares its `claude-code` runs against it. That comparison is
+  indicative too: an agent-run kit tells each with-skill sub-agent to read the skill, while the automated subject
+  decides for itself, so a drop can come from the host rather than a regression
+  ([details](docs/evaluation.md#baselines-and-regressions)). CI runs of other subjects report the gate as skipped.
+
 ## Development
 
 ```bash

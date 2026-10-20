@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 
 import pytest
 
 from ai_product_governance.cli import main
+from ai_product_governance.evals import cli as eval_cli
 from ai_product_governance.evals.config import EvalConfig, load_config
 from ai_product_governance.evals.kit import (
     AGENT_RUN,
@@ -195,3 +197,59 @@ def test_agent_run_kit_commands(tmp_path: Path, capsys: pytest.CaptureFixture[st
         paste(answer, "An answer.")
     assert main(["eval-kit", "grade", str(kit)]) == 0
     assert "fresh sub-agent without the skill for each line" in capsys.readouterr().out
+
+
+def graded_kit(tmp_path: Path, config: EvalConfig, skill: Skill, scenarios: list[Scenario], mode: str) -> Path:
+    kit = create_kit(tmp_path, config, skill, scenarios, tool="Claude Code (Opus 5.5)", mode=mode)
+    for entry in json.loads((kit / "kit.json").read_text(encoding="utf-8"))["answers"]:
+        paste(kit / "answers" / f"{entry['id']}.md", "An answer.")
+    prepare_grading(kit, scenarios)
+    fill_verdicts(kit, scenarios)
+    return kit
+
+
+@pytest.mark.parametrize(("mode", "indicative"), [(AGENT_RUN, True), ("manual", False)])
+def test_results_record_the_subject_a_kit_stands_in_for(
+    tmp_path: Path, config: EvalConfig, skill: Skill, scenarios: list[Scenario], mode: str, indicative: bool
+) -> None:
+    kit = graded_kit(tmp_path, config, skill, scenarios, mode)
+    paths, _gates = score_kit(kit, config, skill, scenarios, stands_in_for="claude-code")
+    results = json.loads(paths["results"].read_text(encoding="utf-8"))
+    (subject,) = results["subjects"]
+    assert subject["id"] == "Claude Code (Opus 5.5)", "the kit's own subject id stays its tool label"
+    assert subject["stands_in_for"] == "claude-code" and subject["indicative"] is indicative
+    assert {a["subject"] for a in results["arms"]} == {"Claude Code (Opus 5.5)"}
+
+    paths, _gates = score_kit(kit, config, skill, scenarios)
+    (subject,) = json.loads(paths["results"].read_text(encoding="utf-8"))["subjects"]
+    assert "stands_in_for" not in subject
+
+
+def test_unknown_stand_in_subject_is_refused(
+    tmp_path: Path, config: EvalConfig, skill: Skill, scenarios: list[Scenario]
+) -> None:
+    kit = graded_kit(tmp_path, config, skill, scenarios, AGENT_RUN)
+    with pytest.raises(KitError, match="Unknown subject id 'claude'"):
+        score_kit(kit, config, skill, scenarios, stands_in_for="claude")
+
+
+def test_kit_score_updates_the_baseline(
+    repo: Path, tmp_path: Path, skill: Skill, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A throwaway checkout, so the test never touches the committed baseline.
+    checkout = tmp_path / "checkout"
+    shutil.copytree(repo / "evals", checkout / "evals", ignore=shutil.ignore_patterns("baselines", "kits", "results"))
+    monkeypatch.setattr(eval_cli, "find_repo_root", lambda: checkout)
+    config = load_config(checkout / "evals" / "eval.config.json")
+    scenarios = [s for s in load_scenarios(checkout / "evals" / "scenarios") if s.id == "g0-deterministic-first"]
+    kit = graded_kit(tmp_path / "kits", config, skill, scenarios, AGENT_RUN)
+
+    assert main(["eval-kit", "score", str(kit), "--stands-in-for", "nope", "--update-baseline"]) == 2
+    assert "Unknown subject id 'nope'" in capsys.readouterr().err
+    assert not (checkout / "evals" / "baselines").exists(), "a refused kit never becomes the baseline"
+
+    assert main(["eval-kit", "score", str(kit), "--stands-in-for", "claude-code", "--update-baseline"]) in (0, 1)
+    target = checkout / "evals" / "baselines" / "latest.json"
+    assert "Baseline updated" in capsys.readouterr().out
+    assert target.read_text(encoding="utf-8") == (kit / "report" / "results.json").read_text(encoding="utf-8")
+    assert json.loads(target.read_text(encoding="utf-8"))["subjects"][0]["stands_in_for"] == "claude-code"

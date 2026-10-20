@@ -50,6 +50,27 @@ Claude plugin manifest always share one version; `aipg validate` enforces it.
   DORA, ECOA and Regulation B, FCRA, SEC Rule 17a-4, FINRA rules, MiFID II and the FCA Consumer Duty.
   `risk_tier.py` returns the mappings with each required control and adds a "Maps to" column to its Markdown
   output. The mappings are informative, not legal advice.
+- First published eval baseline, `evals/baselines/latest.json`: an agent-run `/ai-eval` on Claude Code (Claude
+  Opus 5.5), 10 scenarios × 2 arms × 1 trial. With the skill it scored 1.00 (100% pass, 0 critical failures);
+  without it, 0.92 (90% pass, 1 critical failure), a delta of +0.08. All gates pass. The README's new Results section
+  gives per-scenario scores and caveats. It stands in for the `claude-code` subject, so CI's regression gate
+  compares `claude-code` runs against it, labelled indicative.
+- `aipg eval-kit score --update-baseline` saves a scored kit as `evals/baselines/latest.json`, as
+  `aipg eval --update-baseline` does for automated runs; both now copy `results.json` byte for byte.
+- `aipg eval-kit score --stands-in-for <subject id>` lets a kit's results serve as the baseline for a configured
+  automated subject, such as an `/ai-eval` in Claude Code standing in for `claude-code`. The kit keeps its tool
+  label as its subject id, and the regression gate's detail names it and keeps the agent-run "indicative" label.
+  `docs/evaluation.md` explains why agent-run and automated runs measure differently and how to read a drop.
+- `results.json` records how each subject was produced (`subjects`: id, provider, model, effort, and for kits
+  `indicative` and `stands_in_for`), so a baseline copied from it describes itself.
+
+### Fixed
+
+- `aipg eval --compare` no longer skips the regression gate silently when no baseline subject matches. The plan
+  shows a `regression check:` line per subject before any model call. After the run, the console prints a warning,
+  `report.md` marks the gate `skipped` (with the verdict `PASS (n skipped)`) and `junit.xml` writes a `<skipped>`
+  test case. A skipped gate never fails the run. An unreadable baseline now stops the run with exit code 2 before
+  any model call, instead of failing after the run has been paid for.
 
 ### Documentation
 

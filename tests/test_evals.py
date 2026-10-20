@@ -17,7 +17,17 @@ from ai_product_governance.evals.report import write_reports
 from ai_product_governance.evals.runner import build_manifest, estimate_cost, plan_jobs, run_jobs
 from ai_product_governance.evals.runtime import SkillRuntime
 from ai_product_governance.evals.scenarios import Scenario, ScenarioError, load_scenarios, parse_scenario
-from ai_product_governance.evals.scoring import evaluate_gates, score_trial, summarise, summarise_arms
+from ai_product_governance.evals.scoring import (
+    ArmSummary,
+    BaselineScore,
+    GateResult,
+    evaluate_gates,
+    match_baseline,
+    parse_baseline,
+    score_trial,
+    summarise,
+    summarise_arms,
+)
 from ai_product_governance.skill import Skill
 
 
@@ -114,17 +124,100 @@ def test_judge_parsing_treats_missing_verdicts_as_failures() -> None:
 
 
 def test_gates_and_regression() -> None:
-    from ai_product_governance.evals.scoring import ArmSummary
-
     arms = [
         ArmSummary("m", "with-skill", 10, 0.86, 0.9, 0, 0),
         ArmSummary("m", "baseline", 10, 0.62, 0.4, 3, 0),
     ]
-    gates = {g.name: g for g in evaluate_gates(arms, Gates(), baseline={"m": 0.95})}
+    gates = {g.name: g for g in evaluate_gates(arms, Gates(), baseline=[BaselineScore("m", 0.95)])}
     assert gates["min_with_skill_score"].passed
     assert gates["max_with_skill_critical_failures"].passed
     assert gates["min_delta"].passed and "+0.240" in gates["min_delta"].detail
-    assert not gates["max_regression"].passed
+    assert not gates["max_regression"].passed and not gates["max_regression"].skipped
+    assert gates["max_regression"].detail == "0.860 vs baseline 0.950 (maximum drop 0.050)"
+    assert "max_regression" not in {g.name for g in evaluate_gates(arms, Gates())}, "no --compare, no gate"
+
+
+AGENT_RUN_BASELINE = BaselineScore("Claude Code (Opus)", 1.0, "agent-run", stands_in_for="claude-code", indicative=True)
+
+
+def _with_skill(subject: str, score: float) -> list[ArmSummary]:
+    return [ArmSummary(subject, "with-skill", 10, score, 1.0, 0, 0)]
+
+
+def _regression(subject: str, score: float, baseline: list[BaselineScore]) -> GateResult:
+    (gate,) = [g for g in evaluate_gates(_with_skill(subject, score), Gates(), baseline) if g.name == "max_regression"]
+    return gate
+
+
+def test_regression_gate_compares_a_subject_with_the_kit_that_stands_in_for_it() -> None:
+    gate = _regression("claude-code", 0.97, [AGENT_RUN_BASELINE])
+    assert gate.passed and not gate.skipped
+    assert "vs baseline 1.000 from 'Claude Code (Opus)' (agent-run result, indicative)" in gate.detail
+    gate = _regression("claude-code", 0.90, [AGENT_RUN_BASELINE])
+    assert not gate.passed, "a stand-in baseline is enforced like any other"
+
+
+def test_regression_gate_prefers_the_same_subject_id() -> None:
+    baseline = [AGENT_RUN_BASELINE, BaselineScore("claude-code", 0.80, "claude-code")]
+    assert match_baseline("claude-code", baseline) == baseline[1]
+    assert match_baseline("Claude Code (Opus)", baseline) == baseline[0]
+    gate = _regression("claude-code", 0.78, baseline)
+    assert gate.passed and gate.detail == "0.780 vs baseline 0.800 (maximum drop 0.050)"
+
+
+@pytest.mark.parametrize(
+    ("baseline", "listed"), [([AGENT_RUN_BASELINE], "'Claude Code (Opus)'"), ([], "no with-skill results")]
+)
+def test_regression_gate_without_a_matching_subject_is_skipped_not_silent(
+    baseline: list[BaselineScore], listed: str
+) -> None:
+    gate = _regression("anthropic-api", 0.5, baseline)
+    assert gate.skipped and gate.passed, "skipped, and never a failure"
+    assert "no baseline subject matches 'anthropic-api'" in gate.detail and listed in gate.detail
+
+
+def test_parse_baseline_reads_how_each_subject_was_produced() -> None:
+    arms = [
+        {"subject": "Claude Code (Opus)", "arm": "with-skill", "mean_score": 1.0},
+        {"subject": "Claude Code (Opus)", "arm": "baseline", "mean_score": 0.9},
+        {"subject": "codex", "arm": "with-skill", "mean_score": 0.85},
+    ]
+    subjects = [
+        {"id": "Claude Code (Opus)", "provider": "agent-run", "stands_in_for": "claude-code", "indicative": True},
+        {"id": "codex", "provider": "agent-cli", "model": "inherit", "effort": None},
+    ]
+    assert parse_baseline({"arms": arms, "subjects": subjects}) == [
+        AGENT_RUN_BASELINE,
+        BaselineScore("codex", 0.85, "agent-cli"),
+    ]
+    # Results written before `subjects` was recorded still match by subject id.
+    assert parse_baseline({"arms": arms}) == [BaselineScore("Claude Code (Opus)", 1.0), BaselineScore("codex", 0.85)]
+
+
+def test_committed_baseline_is_compared_with_the_claude_code_subject(repo: Path) -> None:
+    data = json.loads((repo / "evals" / "baselines" / "latest.json").read_text(encoding="utf-8"))
+    (score,) = parse_baseline(data)
+    assert score.stands_in_for == "claude-code" and score.indicative and score.provider == "agent-run"
+    assert score.subject.startswith("Claude Code"), "the kit keeps its tool label as its subject id"
+    gates = evaluate_gates(_with_skill("claude-code", 1.0) + _with_skill("anthropic-api", 1.0), Gates(), [score])
+    regression = {g.subject: g for g in gates if g.name == "max_regression"}
+    assert not regression["claude-code"].skipped and regression["claude-code"].passed
+    assert regression["anthropic-api"].skipped, "other subjects are reported as not compared"
+
+
+def test_skipped_gates_are_visible_in_markdown_and_junit() -> None:
+    from ai_product_governance.evals.report import render_junit, render_markdown
+
+    arms = _with_skill("anthropic-api", 0.9)
+    gates = evaluate_gates(arms, Gates(), [AGENT_RUN_BASELINE])
+    manifest = {"run_id": "r1", "skill_version": "1.0.0", "trials": 1, "subjects": [], "judges": {}}
+    report = render_markdown(manifest, [], [], arms, gates, [], None)
+    assert "**Gates: PASS (1 skipped)**" in report
+    assert "| anthropic-api | max_regression | skipped | not compared: no baseline subject matches" in report
+    suite = ET.fromstring(render_junit(manifest, [], gates)).find("testsuite[@name='gates']")
+    assert suite is not None and suite.get("skipped") == "1" and suite.get("failures") == "0"
+    case = suite.find("testcase[@name='max_regression']")
+    assert case is not None and case.find("skipped") is not None and case.find("failure") is None
 
 
 # --------------------------------------------------------------------------- skill-host runtime
