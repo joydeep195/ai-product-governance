@@ -34,6 +34,8 @@ def write_reports(
         json.dumps(
             {
                 "run_id": manifest["run_id"],
+                # How each subject was produced, so a baseline copied from this file describes itself.
+                "subjects": manifest.get("subjects", []),
                 "total_cost_usd": total_cost,
                 "skipped": skipped,
                 "arms": [asdict(a) for a in arms],
@@ -61,6 +63,9 @@ def render_markdown(
 ) -> str:
     cost = "n/a" if total_cost is None else f"${total_cost:,.2f}"
     verdict = "PASS" if gates and all(g.passed for g in gates) else ("FAIL" if gates else "NO GATES EVALUATED")
+    skipped_gates = sum(g.skipped for g in gates)
+    if skipped_gates:
+        verdict += f" ({skipped_gates} skipped)"
     subjects = manifest.get("subjects", [])
     judges = list(manifest.get("judges", {}).values()) or [manifest.get("judge", {})]
     judge_models = sorted({str(j.get("model", "n/a")) for j in judges if j})
@@ -105,7 +110,7 @@ def render_markdown(
     ]
     if gates:
         lines += ["", "## Quality gates", "", "| Subject | Gate | Result | Detail |", "|---|---|---|---|"]
-        lines += [f"| {g.subject} | {g.name} | {'pass' if g.passed else 'FAIL'} | {g.detail} |" for g in gates]
+        lines += [f"| {g.subject} | {g.name} | {_gate_result(g)} | {g.detail} |" for g in gates]
 
     lines += [
         "",
@@ -166,13 +171,20 @@ def render_junit(manifest: dict[str, Any], cells: list[CellSummary], gates: list
     gate_suite = ET.SubElement(suites, "testsuite", name="gates")
     for gate in gates:
         case = ET.SubElement(gate_suite, "testcase", classname=gate.subject, name=gate.name)
-        if not gate.passed:
+        if gate.skipped:
+            ET.SubElement(case, "skipped", message=gate.detail)
+        elif not gate.passed:
             ET.SubElement(case, "failure", message=gate.detail)
     for suite in (scenario_suite, gate_suite):
         suite.set("tests", str(len(suite)))
         suite.set("failures", str(sum(1 for case in suite if case.find("failure") is not None)))
+        suite.set("skipped", str(sum(1 for case in suite if case.find("skipped") is not None)))
     ET.indent(suites)
     return ET.tostring(suites, encoding="unicode", xml_declaration=True) + "\n"
+
+
+def _gate_result(gate: GateResult) -> str:
+    return "skipped" if gate.skipped else ("pass" if gate.passed else "FAIL")
 
 
 def _write(path: Path, content: str) -> None:

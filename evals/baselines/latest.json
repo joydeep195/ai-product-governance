@@ -1,5 +1,15 @@
 {
   "run_id": "20261018T191202Z",
+  "subjects": [
+    {
+      "id": "Claude Code (Claude Opus 5.5)",
+      "provider": "agent-run",
+      "model": "Claude Code (Claude Opus 5.5)",
+      "effort": null,
+      "indicative": true,
+      "stands_in_for": "claude-code"
+    }
+  ],
   "total_cost_usd": null,
   "skipped": [],
   "arms": [
@@ -269,19 +279,22 @@
       "subject": "Claude Code (Claude Opus 5.5)",
       "name": "min_with_skill_score",
       "passed": true,
-      "detail": "1.000 (minimum 0.800)"
+      "detail": "1.000 (minimum 0.800)",
+      "skipped": false
     },
     {
       "subject": "Claude Code (Claude Opus 5.5)",
       "name": "max_with_skill_critical_failures",
       "passed": true,
-      "detail": "0 (maximum 0)"
+      "detail": "0 (maximum 0)",
+      "skipped": false
     },
     {
       "subject": "Claude Code (Claude Opus 5.5)",
       "name": "min_delta",
       "passed": true,
-      "detail": "+0.081 (minimum +0.000)"
+      "detail": "+0.081 (minimum +0.000)",
+      "skipped": false
     }
   ],
   "trials": [

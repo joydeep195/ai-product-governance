@@ -223,9 +223,11 @@ Read this as indicative evidence, not an audited result:
   separate strong answers at the top for this model.
 - Two answer sub-agents were cut off by the plan's usage limit and rerun from scratch. One grader errored after it
   had saved a complete verdict, and that verdict was kept.
-- The run is stored in [`evals/baselines/latest.json`](evals/baselines/latest.json). CI's regression gate matches
-  baselines by subject id, and this run's subject is the tool name rather than an automated id such as
-  `claude-code`, so CI does not yet compare its runs against it.
+- The run is stored in [`evals/baselines/latest.json`](evals/baselines/latest.json) as standing in for the
+  `claude-code` subject, so CI's regression gate compares its `claude-code` runs against it. That comparison is
+  indicative too: an agent-run kit tells each with-skill sub-agent to read the skill, while the automated subject
+  decides for itself, so a drop can come from the host rather than a regression
+  ([details](docs/evaluation.md#baselines-and-regressions)). CI runs of other subjects report the gate as skipped.
 
 ## Development
 

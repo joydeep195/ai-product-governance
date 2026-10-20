@@ -25,7 +25,15 @@ from ai_product_governance.evals.providers import readiness
 from ai_product_governance.evals.report import write_reports
 from ai_product_governance.evals.runner import build_manifest, estimate_cost, plan_jobs, run_jobs
 from ai_product_governance.evals.scenarios import ScenarioError, load_scenarios
-from ai_product_governance.evals.scoring import evaluate_gates, summarise, summarise_arms
+from ai_product_governance.evals.scoring import (
+    BaselineScore,
+    GateResult,
+    evaluate_gates,
+    match_baseline,
+    parse_baseline,
+    summarise,
+    summarise_arms,
+)
 from ai_product_governance.skill import find_repo_root, load_skill
 
 NO_TOOL_HELP = """\
@@ -36,6 +44,7 @@ No AI access was found to run the evals automatically. Any ONE of these is enoug
   - run a free local model with Ollama (`ollama pull llama3.1`).
 Using a chat app such as ChatGPT, Gemini or Microsoft 365 Copilot? Use the manual kit:
   aipg eval-kit create"""
+UPDATE_BASELINE_HELP = "save this run's results.json as evals/baselines/latest.json"
 
 
 def add_arguments(parser: argparse.ArgumentParser) -> None:
@@ -51,8 +60,11 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--judge", help=f"'{JUDGE_SAME_AS_SUBJECT}' (the same tool, default) or a model id")
     parser.add_argument("--max-cost-usd", type=float, help="stop starting new trials once known spend reaches this")
     parser.add_argument("--out", help="results directory (default: evals/results/<run id>)")
-    parser.add_argument("--compare", help="baseline results.json to check for regressions")
-    parser.add_argument("--update-baseline", action="store_true", help="save this run as evals/baselines/latest.json")
+    parser.add_argument(
+        "--compare",
+        help="baseline results.json to check for regressions (matched by subject id, or by a kit's --stands-in-for)",
+    )
+    parser.add_argument("--update-baseline", action="store_true", help=UPDATE_BASELINE_HELP)
     parser.add_argument(
         "--dry-run", action="store_true", help="show what would run and what is detected; no model calls"
     )
@@ -80,6 +92,11 @@ def run_from_args(args: argparse.Namespace) -> int:
     judge_use = args.judge or config.judge_use
     if judge_use != JUDGE_SAME_AS_SUBJECT and judge_use not in {m.id for m in config.models}:
         print(f"error: unknown judge '{judge_use}'", file=sys.stderr)
+        return 2
+    try:
+        baseline = _load_baseline(Path(args.compare)) if args.compare else None
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
+        print(f"error: cannot read baseline {args.compare}: {exc}", file=sys.stderr)
         return 2
 
     statuses = {spec.id: readiness(spec) for spec in config.models}
@@ -110,6 +127,8 @@ def run_from_args(args: argparse.Namespace) -> int:
         judge = judge_for(subject)
         same = " (the same tool)" if judge_use == JUDGE_SAME_AS_SUBJECT else ""
         print(f"  {subject.id}: {_label(subject)}; graded by {_label(judge)}{same}")
+        if baseline is not None:
+            print(f"    regression check: {_describe_match(subject.id, baseline)}")
     print(
         "Rough cost estimate: " + ("n/a (subscription or unpriced model)" if estimate is None else f"${estimate:,.2f}")
     )
@@ -128,7 +147,6 @@ def run_from_args(args: argparse.Namespace) -> int:
     outcome.manifest = build_manifest(config, skill, scenarios, outcome, arms, trials, subjects, judge_for=judge_for)
     cells = summarise(outcome.trials)
     arm_summaries = summarise_arms(cells)
-    baseline = _load_baseline(Path(args.compare)) if args.compare else None
     gates = evaluate_gates(arm_summaries, config.gates, baseline)
 
     out_dir = Path(args.out) if args.out else repo / "evals" / "results" / outcome.run_id
@@ -136,15 +154,10 @@ def run_from_args(args: argparse.Namespace) -> int:
         out_dir, outcome.manifest, outcome.trials, cells, arm_summaries, gates, outcome.skipped, outcome.total_cost_usd
     )
     if args.update_baseline:
-        target = repo / "evals" / "baselines" / "latest.json"
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(paths["results"].read_text(encoding="utf-8"), encoding="utf-8")
-        print(f"Baseline updated: {target}")
+        _save_baseline(repo, paths["results"])
 
     print(f"Report: {paths['report']}")
-    failed = [g for g in gates if not g.passed]
-    for gate in failed:
-        print(f"GATE FAILED {gate.subject} {gate.name}: {gate.detail}")
+    failed = _print_gates(gates)
     if outcome.skipped:
         print(f"{len(outcome.skipped)} trial(s) skipped at the cost ceiling; results are partial.")
         return 3
@@ -163,9 +176,18 @@ def add_kit_arguments(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="for an AI agent that runs the kit itself with fresh sub-agents (the skill's /ai-eval workflow)",
     )
-    for name, text in (("grade", "write the blind grading prompts"), ("score", "score the kit and write the report")):
-        command = sub.add_parser(name, help=text)
+    grade = sub.add_parser("grade", help="write the blind grading prompts")
+    score = sub.add_parser("score", help="score the kit and write the report")
+    for command in (grade, score):
         command.add_argument("kit", help="the kit folder created by `aipg eval-kit create`")
+    score.add_argument(
+        "--stands-in-for",
+        default="",
+        metavar="SUBJECT_ID",
+        help="the configured subject (e.g. claude-code) that `aipg eval --compare` may compare with this kit's "
+        "results; only when the kit ran in that subject's tool and model",
+    )
+    score.add_argument("--update-baseline", action="store_true", help=UPDATE_BASELINE_HELP)
 
 
 def run_kit_from_args(args: argparse.Namespace) -> int:
@@ -214,12 +236,11 @@ def run_kit_from_args(args: argparse.Namespace) -> int:
             else:
                 print(f"Step 2: open {sheet} and grade each answer in a new chat without the skill.")
             return 0
-        paths, gates = score_kit(kit_dir, config, skill, scenarios)
+        paths, gates = score_kit(kit_dir, config, skill, scenarios, stands_in_for=args.stands_in_for)
+        if args.update_baseline:
+            _save_baseline(repo, paths["results"])
         print(f"Report: {paths['report']}")
-        failed = [g for g in gates if not g.passed]
-        for gate in failed:
-            print(f"GATE FAILED {gate.subject} {gate.name}: {gate.detail}")
-        return 1 if failed else 0
+        return 1 if _print_gates(gates) else 0
     except KitError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -276,6 +297,33 @@ def _label(spec: ModelSpec) -> str:
     return text + (f", effort {effort}" if effort else "")
 
 
-def _load_baseline(path: Path) -> dict[str, float]:
-    data = json.loads(path.read_text(encoding="utf-8"))
-    return {a["subject"]: a["mean_score"] for a in data.get("arms", []) if a.get("arm") == "with-skill"}
+def _load_baseline(path: Path) -> list[BaselineScore]:
+    return parse_baseline(json.loads(path.read_text(encoding="utf-8")))
+
+
+def _describe_match(subject: str, baseline: list[BaselineScore]) -> str:
+    match = match_baseline(subject, baseline)
+    if match is None:
+        return "SKIPPED, no baseline subject matches (see docs/evaluation.md, 'Baselines and regressions')"
+    if match.subject == subject:
+        return "against the baseline for the same subject"
+    kind = f"an {match.provider} result, indicative" if match.indicative else f"a {match.provider} result"
+    return f"against {match.subject!r} ({kind}), which stands in for {subject}"
+
+
+def _save_baseline(repo: Path, results: Path) -> None:
+    target = repo / "evals" / "baselines" / "latest.json"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(results.read_bytes())  # byte for byte, so the baseline keeps the report's LF line endings
+    print(f"Baseline updated: {target}")
+
+
+def _print_gates(gates: list[GateResult]) -> list[GateResult]:
+    """Print failed and skipped gates; return the failed ones."""
+    failed = [g for g in gates if not g.passed]
+    for gate in failed:
+        print(f"GATE FAILED {gate.subject} {gate.name}: {gate.detail}")
+    for gate in gates:
+        if gate.skipped:
+            print(f"warning: gate {gate.name} skipped for {gate.subject}: {gate.detail}", file=sys.stderr)
+    return failed
