@@ -50,6 +50,11 @@ Claude plugin manifest always share one version; `aipg validate` enforces it.
   DORA, ECOA and Regulation B, FCRA, SEC Rule 17a-4, FINRA rules, MiFID II and the FCA Consumer Duty.
   `risk_tier.py` returns the mappings with each required control and adds a "Maps to" column to its Markdown
   output. The mappings are informative, not legal advice.
+- First published eval baseline, `evals/baselines/latest.json`: an agent-run `/ai-eval` on Claude Code (Claude
+  Opus 5.5), 10 scenarios × 2 arms × 1 trial. With the skill it scored 1.00 (100% pass, 0 critical failures);
+  without it, 0.92 (90% pass, 1 critical failure), a delta of +0.08. All gates pass. The README's new Results section
+  gives per-scenario scores and caveats. CI's regression gate does not use this baseline yet, because the gate
+  matches by subject id and agent-run results are labelled with the tool name.
 
 ### Documentation
 
