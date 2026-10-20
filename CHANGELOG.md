@@ -49,7 +49,8 @@ Claude plugin manifest always share one version; `aipg validate` enforces it.
   Applications where relevant. The financial-services example (2.5.0) adds SR 26-2 (which replaced SR 11-7),
   DORA, ECOA and Regulation B, FCRA, SEC Rule 17a-4, FINRA rules, MiFID II and the FCA Consumer Duty.
   `risk_tier.py` returns the mappings with each required control and adds a "Maps to" column to its Markdown
-  output. The mappings are informative, not legal advice.
+  output. The mappings are informative, not legal advice. The Gate 3 playbook and the risk-assessment template's
+  control plan now cite each control's mappings, and the playbook names SR 26-2 in place of SR 11-7.
 - First published eval baseline, `evals/baselines/latest.json`: an agent-run `/ai-eval` on Claude Code (Claude
   Opus 5.5), 10 scenarios × 2 arms × 1 trial. With the skill it scored 1.00 (100% pass, 0 critical failures);
   without it, 0.92 (90% pass, 1 critical failure), a delta of +0.08. All gates pass. The README's new Results section

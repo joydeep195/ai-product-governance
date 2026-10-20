@@ -50,7 +50,7 @@ Moving up a level requires evidence. The default policy requires, for one-level 
 
 ## 4. Map the required controls
 
-The policy lists the required controls for the tier, plus conditional controls (for example least-privilege tooling when the system takes actions, or permission-aware retrieval when it uses RAG). For each control, state how it is implemented, what the evidence is, and who owns it (a role).
+The policy lists the required controls for the tier, plus conditional controls (for example least-privilege tooling when the system takes actions, or permission-aware retrieval when it uses RAG). For each control, state how it is implemented, what the evidence is, and who owns it (a role). Also cite the framework references in the control's `mappings`, which the calculator returns on each required control (the "Maps to" column of its Markdown output), so a reviewer can trace the control to the requirement it addresses. Say that the mappings are informative, not legal advice: they do not show that a requirement applies or is met, and legal and compliance teams confirm applicability.
 
 The default control catalogue:
 
@@ -100,7 +100,7 @@ Route to legal and compliance review whenever one of these applies:
 
 - **EU users or the EU market:** obligations under the EU AI Act depend on the risk category, ranging from transparency duties (for example for chatbots and AI-generated content) to extensive requirements for high-risk uses such as employment, credit scoring, education and access to essential services.
 - **Automated decisions with legal or similarly significant effects on people:** GDPR Article 22 and comparable laws apply, and high-risk processing typically needs a data protection impact assessment.
-- **Sector rules:** for example model risk management in banking (such as SR 11-7 in the US), health data rules (such as HIPAA in the US), and consumer-protection and advertising law for generated content.
+- **Sector rules:** for example model risk management in banking, health data rules (such as HIPAA in the US), and consumer-protection and advertising law for generated content. In the US, SR 26-2 (OCC Bulletin 2026-13) replaced SR 11-7 in April 2026; it places generative and agentic AI models outside its scope, but says a bank's own risk management and governance practices should still set the controls for them.
 - **Management frameworks** that structure an AI programme: NIST AI RMF and ISO/IEC 42001.
 
 ## Exit criteria
@@ -108,5 +108,5 @@ Route to legal and compliance review whenever one of these applies:
 - [ ] Tier computed from the policy, with the policy ID and version, the triggering rules, and any unanswered questions.
 - [ ] Risk register covering every category, with `N/A — <reason>` where a category does not apply.
 - [ ] Autonomy level chosen within the tier cap, with promotion criteria.
-- [ ] Control plan: every required and conditional control with its implementation, evidence and owner.
+- [ ] Control plan: every required and conditional control with its implementation, evidence, owner and the framework references from its `mappings`, marked as informative, not legal advice.
 - [ ] Required approvers identified and regulatory flags routed.
