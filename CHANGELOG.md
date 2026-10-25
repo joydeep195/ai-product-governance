@@ -72,6 +72,8 @@ Claude plugin manifest always share one version; `aipg validate` enforces it.
   `report.md` marks the gate `skipped` (with the verdict `PASS (n skipped)`) and `junit.xml` writes a `<skipped>`
   test case. A skipped gate never fails the run. An unreadable baseline now stops the run with exit code 2 before
   any model call, instead of failing after the run has been paid for.
+- CI's Python 3.9 compatibility job runs on `ubuntu-24.04`: `ubuntu-latest` moved to Ubuntu 26.04, which has no
+  Python 3.9 build, so the job failed to set up Python.
 
 ### Documentation
 
