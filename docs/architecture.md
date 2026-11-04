@@ -131,4 +131,4 @@ docs/                           architecture, evaluation, policy guide, ADRs
 | `pytest` on 3 OSes and Python 3.11-3.14 | CI | Engine, server, adapter and harness regressions |
 | Bundled scripts on Python 3.9 | CI | Code-interpreter compatibility |
 | Wheel smoke test | CI | Packaging mistakes (for example a skill missing from the wheel) |
-| `aipg eval` with gates and baseline comparison | Scheduled, manual, or `run-evals` label | Behavioural regressions across models |
+| `aipg eval` with gates and baseline comparison | Local agent session; GitHub Actions needs a credential in its protected `evals` environment | Behavioural regressions across models |
