@@ -1,8 +1,8 @@
 name: Evals
 
-# Model evals call paid APIs, so they never run automatically on every push. Run them manually,
-# on a schedule, or by labelling a pull request `run-evals`. API keys live in the protected
-# `evals` environment; pull requests from forks never receive them.
+# A GitHub-hosted runner cannot access the developer's local agent session. Remote runs need
+# an AI credential in the protected `evals` environment; otherwise the run explains how to
+# use the current agent session locally. Pull requests from forks never receive credentials.
 on:
   workflow_dispatch:
     inputs:
@@ -38,11 +38,35 @@ jobs:
           python-version: "3.13"
           cache: pip
       - run: python -m pip install -e ".[evals]"
+      - name: Check for configured AI access
+        id: ai-access
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [[ -n "$ANTHROPIC_API_KEY" \
+            || -n "$CLAUDE_CODE_OAUTH_TOKEN" \
+            || -n "$OPENAI_API_KEY" \
+            || -n "$GEMINI_API_KEY" ]]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "## Evals not run"
+              echo
+              echo "This GitHub-hosted runner has no AI credential and cannot use your local agent sign-in. No evaluation was performed and no pass result is reported."
+              echo
+              echo "To use your current agent session, run \`aipg eval\` locally or ask your coding agent to run \`/ai-eval\`. For remote Actions runs, configure an AI credential as a secret in the protected \`evals\` environment."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Install Claude Code (subscription-based subject and judge)
-        if: env.HAS_CLAUDE_CODE_TOKEN == 'true'
+        if: steps.ai-access.outputs.available == 'true' && env.HAS_CLAUDE_CODE_TOKEN == 'true'
         # Pinned because this job holds API keys; Dependabot cannot see it, so bump it by hand (npm's `stable` tag).
         run: npm install -g @anthropic-ai/claude-code@2.1.292 # zizmor: ignore[adhoc-packages]
       - name: Run evals
+        if: steps.ai-access.outputs.available == 'true'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

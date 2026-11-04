@@ -20,7 +20,10 @@ harness measures that claim on any model, the way Gate 2 of the skill asks produ
 
 You never need more than one AI tool, and it does not matter which one. Pick the path that matches what you use.
 
-### Automatic, with whatever you are signed in to
+### Automatic, with whatever you are signed in to (run locally)
+
+Run these commands in the same local environment as the agent CLI you use. The harness detects that CLI's
+existing sign-in; it does not require an API key in the repository.
 
 ```bash
 pip install -e ".[evals]"
@@ -199,9 +202,13 @@ effort) and `anthropic-api` (the emulator, `medium` effort) both serve Claude Op
 have to live in the CI workflow and be edited whenever the baseline changes. Recording the claim in the baseline
 keeps it next to the scores that reviewers approve.
 
-**In CI.** The committed baseline is an agent-run kit that stands in for `claude-code`, so the gate applies when CI
-runs the `claude-code` subject (the `CLAUDE_CODE_OAUTH_TOKEN` secret is set). Without that secret, CI uses the next
-ready subject, such as `anthropic-api`, and the report shows the gate as skipped.
+**In GitHub Actions.** A hosted runner is a separate machine and cannot reuse the developer's local agent sign-in.
+Remote evals run only when an AI credential is configured as a secret in the protected `evals` environment
+(`CLAUDE_CODE_OAUTH_TOKEN`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `GEMINI_API_KEY`). If none is configured,
+the workflow reports that no evaluation was performed and points to the local commands above; it does not report a
+pass. Pull requests from forks do not receive these secrets. The committed baseline is an agent-run kit that
+stands in for `claude-code`, so the regression gate applies when CI runs that subject; other subjects report the
+regression gate as skipped.
 
 ## Cost
 
