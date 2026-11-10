@@ -30,6 +30,7 @@ Every AI feature passes six gates. Find the gate the request is about, read the 
 
 Approach and model choice: `approach-and-model-selection.md` (model decision record). Definitions: `glossary.md`.
 
+- "Where do we use AI?" or a product review: follow `ai-discovery.md` and fill in the AI inventory. If you cannot see the code, ask the user for it; with no AI, record "No AI found" and assess no tier.
 - Vague "add AI" requests: run Gate 0 before writing any spec.
 - "Write an AI PRD": use the AI PRD template and read the Gate 0, 2 and 3 files.
 - "Can we launch?": check each gate's exit criteria and decide Go, Go with conditions (an owner and a date for each) or No-go (with the shortest path to Go).

@@ -9,7 +9,7 @@ any model called through an API.
 | File | Use it as |
 |---|---|
 | `instructions.md` | The assistant's instructions or system prompt (under 8,000 characters) |
-| `knowledge/` | Knowledge files to upload (13 files) |
+| `knowledge/` | Knowledge files to upload (14 files) |
 
 ## Set-up by tool
 

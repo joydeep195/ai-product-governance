@@ -13,6 +13,6 @@ ${input:feature:Describe the feature, its users, data and actions}
 
 1. Read only these playbooks from the skill: `references/gate-3-risk-and-controls.md`.
 2. Use the template `assets/templates/risk-assessment.md` and keep every section.
-3. Run the skill's `scripts/risk_tier.py` and `scripts/unit_economics.py` for risk tiers and costs; never estimate them by hand.
+3. Run the skill's `scripts/risk_tier.py` and `scripts/unit_economics.py` for risk tiers and costs (and `scripts/ai_inventory.py` to scan for AI); never estimate tiers or costs by hand.
 4. If `.ai-governance/policy.json` exists in this repository, it overrides the default policy.
 5. Save the result as `docs/ai-governance/<feature>-risk-assessment.md` unless asked otherwise.

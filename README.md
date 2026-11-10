@@ -68,6 +68,7 @@ sign-in or an API key.
 | Governance method: rules, six gates, playbooks, templates | The skill, loaded natively | The skill where supported, otherwise the prompt pack |
 | Policy as code: your organisation's tiers, controls and approvers | `.ai-governance/policy.json` in the repo | Upload your policy file with the prompt pack |
 | Deterministic calculators: risk tier, unit economics | The bundled Python scripts | Code execution where the tool has it, the MCP server, or the documented formulas |
+| AI discovery: which AI does the product already use? | The bundled scan plus the agent's own file search, then the AI inventory template | The playbook's checklist, applied to the code or answers you share |
 | Evals: does the skill improve answers? | `/ai-eval`: your agent runs the suite in its own session with fresh sub-agents; or `aipg eval`, which detects your tool | `aipg eval-kit`: copy-and-paste steps, scored offline |
 
 ## Quick start
@@ -101,6 +102,7 @@ Then ask your assistant what you would ask a senior AI product lead:
 > *"Our CEO wants us to add AI to the support platform this quarter. Write the PRD."*
 > *"Product wants an agent that issues refunds up to $500 with no human in the loop. Can you approve it?"*
 > *"Acceptance of our AI replies dropped from 62% to 48%. Should we switch providers?"*
+> *"Review this repository for AI governance."*
 
 ## Policy as code
 

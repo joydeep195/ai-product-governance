@@ -14,6 +14,7 @@ skill works as-is. These prompt files add one slash command per governance workf
 
 | Command | What it does |
 |---|---|
+| `/ai-inventory` | Find every AI use in a product or repository, apart from development tools, and route each to its gate, or record a clean 'No AI found' with what was searched. |
 | `/ai-intake` | Decide whether a use case needs AI at all (Gate 0) and produce a use-case brief with a fit verdict. |
 | `/ai-business-case` | Price an AI feature per completed task and decide whether it is worth building (Gate 1). |
 | `/ai-prd` | Write an AI PRD with a fit verdict, quality bar, failure design, economics, risk tier, controls and rollout. |

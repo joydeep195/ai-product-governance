@@ -43,12 +43,13 @@ Every AI feature passes six gates. Identify which gate the request is about, rea
 | G4 Launch readiness | Is it safe to expose to users, and how much? | [references/gate-4-launch-readiness.md](references/gate-4-launch-readiness.md) | [Launch readiness review](assets/templates/launch-readiness-review.md) |
 | G5 Operate and improve | Is it still working? | [references/gate-5-operate-and-improve.md](references/gate-5-operate-and-improve.md) | [Incident or regression review](assets/templates/incident-review.md) |
 
-Cross-cutting: approach and model choice in [references/approach-and-model-selection.md](references/approach-and-model-selection.md) with the [model decision record](assets/templates/model-decision-record.md); definitions in [references/glossary.md](references/glossary.md).
+Cross-cutting: finding the AI a product already uses in [references/ai-discovery.md](references/ai-discovery.md) with the [AI inventory](assets/templates/ai-inventory.md); approach and model choice in [references/approach-and-model-selection.md](references/approach-and-model-selection.md) with the [model decision record](assets/templates/model-decision-record.md); definitions in [references/glossary.md](references/glossary.md).
 
 ### Routing common requests
 
 | The user asks… | Do this |
 |---|---|
+| "Review our product / repo for AI governance" / "Where do we use AI?" | AI discovery first: inventory the AI uses, then take each one to its gate. If there is none, record "No AI found" with what was searched, and assess no tier. |
 | "Add AI to our product" (vague) | Gate 0 first. Do not write a spec until a fit verdict exists. |
 | "Should we use AI for X?" | Gate 0. |
 | "Write an AI PRD / spec" | Use the [AI PRD template](assets/templates/ai-prd.md). Read the G0, G2 and G3 references; fill the G1 and G4 sections from the template prompts. |
@@ -80,6 +81,7 @@ Use the bundled scripts for anything that must be repeatable or auditable. They 
 
 - **Risk tier:** `python scripts/risk_tier.py --answers answers.json` (or `--answers-json '{...}'`; add `--policy <path>` for an organisation policy). Returns the tier, the rules that triggered it, required controls, approvers, eval minimums and the maximum autonomy at launch. `--questions` prints the questionnaire.
 - **Unit economics:** `python scripts/unit_economics.py --input inputs.json` (or `--input-json '{...}'`). Returns cost per call, per completed task and per month, savings against the baseline, payback, break-even success rate and a sensitivity table. `--example` prints a complete input file.
+- **AI inventory:** `python scripts/ai_inventory.py <path>`. Lists AI packages, SDK imports, model endpoints, API-key variable names (never their values), model and prompt files, and coding-assistant configuration apart from product AI. It is read-only and makes no network calls. `"ai_found": false` is a starting point, not proof: check everything in its `not_covered` list.
 
 Add `--format md` for a Markdown table. If you cannot execute code, apply the formulas in the Gate 1 and Gate 3 references and show your working.
 <!-- aipg:end scripts -->

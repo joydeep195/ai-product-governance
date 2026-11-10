@@ -57,6 +57,23 @@ GATES: tuple[Gate, ...] = (
 
 WORKFLOWS: tuple[Workflow, ...] = (
     Workflow(
+        id="ai-inventory",
+        title="AI discovery and inventory",
+        description=(
+            "Find every AI use in a product or repository, apart from development tools, and route each to its "
+            "gate, or record a clean 'No AI found' with what was searched."
+        ),
+        argument="scope",
+        argument_hint="Name the product, repository or paths to search, and the third-party tools it relies on",
+        references=("ai-discovery",),
+        template="ai-inventory",
+        task=(
+            "Run AI discovery on this scope and produce the AI inventory. Route each AI use you find to its next "
+            "gate; if you find none, record 'No AI found' with what was searched and what was not covered:\n\n"
+            "{argument}"
+        ),
+    ),
+    Workflow(
         id="ai-intake",
         title="AI use-case intake and fit check",
         description="Decide whether a use case needs AI at all (Gate 0) and produce a use-case brief with a fit verdict.",
