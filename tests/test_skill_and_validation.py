@@ -78,7 +78,9 @@ def test_frontmatter_rules_are_enforced(skill: Skill, tmp_path: Path) -> None:
 
 def test_non_string_metadata_is_flagged(skill: Skill, tmp_path: Path) -> None:
     root = _copy_skill(skill, tmp_path)
-    text = (root / "SKILL.md").read_text(encoding="utf-8").replace('version: "1.0.0"', "version: 1.0")
+    original = (root / "SKILL.md").read_text(encoding="utf-8")
+    text = original.replace(f'version: "{skill.version}"', "version: 1.0")
+    assert text != original, "the test must turn the version into a number"
     (root / "SKILL.md").write_text(text, encoding="utf-8")
     assert any("metadata" in f.message for f in check_frontmatter(load_skill(root)))
 

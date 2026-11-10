@@ -243,7 +243,8 @@ pip install -e ".[dev]"
 python -m pytest && aipg validate --strict && aipg build --check
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Security reports: [SECURITY.md](SECURITY.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md). Security reports: [SECURITY.md](SECURITY.md). Planned work:
+[docs/roadmap.md](docs/roadmap.md).
 
 ## Scope and disclaimer
 

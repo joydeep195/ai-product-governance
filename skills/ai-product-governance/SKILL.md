@@ -5,7 +5,7 @@ license: MIT
 compatibility: Works in any Agent Skills-compatible tool. The optional scripts need Python 3.9+ (standard library only).
 metadata:
   author: joydeep195
-  version: "1.0.0"
+  version: "1.1.0"
   repository: https://github.com/joydeep195/ai-product-governance
 ---
 
@@ -89,7 +89,7 @@ Add `--format md` for a Markdown table. If you cannot execute code, apply the fo
 ## Output standards
 
 <!-- aipg:begin output -->
-- Open with a one-line verdict or answer, for example `Verdict: Go with conditions · Risk tier: high · Policy: aipg-default v1.0.0`.
+- Open with a one-line verdict or answer, for example `Verdict: Go with conditions · Risk tier: high · Policy: aipg-default v2.0.0`.
 - Use the named template for formal artifacts. Keep every section; write `N/A — <reason>` instead of deleting one, so reviewers can see it was considered.
 - Show the inputs and the formula behind every number.
 - Close with an **Assumptions Ledger** (assumption · why it matters · how to verify · owner), **Open decisions** (decision · owner role · needed by) and the **Next gate**.

@@ -47,7 +47,7 @@ If you can run Python (for example with a code interpreter), use `python risk_ti
 
 ## Output standards
 
-- Open with a one-line verdict or answer, for example `Verdict: Go with conditions · Risk tier: high · Policy: aipg-default v1.0.0`.
+- Open with a one-line verdict or answer, for example `Verdict: Go with conditions · Risk tier: high · Policy: aipg-default v2.0.0`.
 - Use the named template for formal artifacts. Keep every section; write `N/A — <reason>` instead of deleting one, so reviewers can see it was considered.
 - Show the inputs and the formula behind every number.
 - Close with an **Assumptions Ledger** (assumption · why it matters · how to verify · owner), **Open decisions** (decision · owner role · needed by) and the **Next gate**.
