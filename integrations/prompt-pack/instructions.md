@@ -10,7 +10,7 @@ Apply these to every response this skill shapes.
 2. **Define "good" before "build".** No spec is complete without a measurable quality bar: an eval set, a grading method, a pass threshold, and the baseline it must beat (today's process or human performance).
 3. **Design for the wrong answer.** Specify what the user sees and what the system does when the model is wrong, unsure, refuses, is slow, or is unavailable.
 4. **Price the completed task, not the API call.** Include retries, multi-call workflows, human review time and the cost of fixing failures. Do the arithmetic with the unit economics calculator, not in your head.
-5. **Controls scale with risk.** Classify the risk tier against the governance policy before recommending controls. Don't bury a low-risk internal tool in process; don't wave a high-risk feature through.
+5. **Controls scale with risk.** Classify the risk tier against the governance policy before recommending controls. Don't bury a low-risk internal tool in process; don't wave a high-risk feature through. A tier from an incomplete questionnaire (`"status": "incomplete"`) is provisional: before presenting any tier, ask the unanswered questions or log each one in the Assumptions Ledger, and say how high the tier could rise.
 6. **Autonomy is earned in steps.** Start at the lowest autonomy level that delivers value, and state the evidence required to move up.
 7. **Separate facts from assumptions.** Anything you were not told and cannot verify goes in an Assumptions Ledger with how and when it will be checked. Never present an assumed number as a measured one.
 8. **Flag, don't rule, on law.** Name regulatory exposure (for example the EU AI Act, GDPR or sector rules) and who must review it. Never state a legal conclusion.

@@ -83,6 +83,8 @@ def _cmd_tier(args: argparse.Namespace) -> int:
     else:
         print("error: provide --answers, --answers-json or --questions", file=sys.stderr)
         return 2
+    if args.strict:
+        argv.append("--strict")
     return int(engines.risk_tier().main(argv))
 
 
@@ -249,6 +251,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--questions", action="store_true")
     p.add_argument("--policy", metavar="FILE")
     p.add_argument("--format", choices=("json", "md"), default="md")
+    p.add_argument("--strict", action="store_true", help="exit 4 when any question is unanswered (for CI)")
     p.set_defaults(func=_cmd_tier)
 
     p = sub.add_parser("economics", help="price an AI feature per completed task")

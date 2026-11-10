@@ -46,7 +46,11 @@ Conditions support `equals`, `in`, `contains_any`, `gte`, `lte`, and nesting wit
 ```
 
 Unanswered questions evaluate to "unknown". The result lists them and the highest tier they could still trigger,
-so a partially completed questionnaire never under-classifies silently.
+so a partially completed questionnaire never under-classifies silently. It also leads with that fact: the result
+carries `"status": "incomplete"` and a headline such as `Incomplete (provisional Minimal; could rise to Prohibited)`
+instead of a bare tier, and the skill tells the agent to ask the missing questions, or log them in the Assumptions
+Ledger, before it presents any tier. The calculator still exits 0, so an agent reads the explanation instead of
+falling back to classifying by hand; add `--strict` (to `risk_tier.py` or `aipg tier`) to exit 4 in CI instead.
 
 ## Customising
 

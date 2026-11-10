@@ -21,8 +21,14 @@ Usage:
   python risk_tier.py --answers answers.json [--policy policy.json] [--format md]
   python risk_tier.py --answers-json '{"customer_facing": true, ...}'
   python risk_tier.py --validate-policy [--policy policy.json]
+  python risk_tier.py --answers answers.json --strict   # for CI: fail on unanswered questions
 
-Exit codes: 0 success; 2 invalid input or answers; 3 invalid or missing policy.
+An incomplete questionnaire still exits 0 and prints its result, with "status": "incomplete"
+and a headline such as "Incomplete (provisional Minimal; could rise to Prohibited)", so an
+agent reads why the tier is provisional instead of falling back to classifying by hand.
+
+Exit codes: 0 success; 2 invalid input or answers; 3 invalid or missing policy;
+4 the questionnaire is incomplete and --strict was given (the result is still printed).
 """
 
 from __future__ import annotations
@@ -379,11 +385,30 @@ def classify(
     if cap is not None and isinstance(requested, str) and requested in levels:
         within_cap = levels.index(requested) <= levels.index(cap)
 
+    status = "incomplete" if unanswered else "complete"
+    headline = tier["name"]
+    if unanswered and not prohibited:
+        if could_rise_to is not None:
+            headline = f"Incomplete (provisional {tier['name']}; could rise to {could_rise_to['name']})"
+        else:
+            headline = f"Incomplete (provisional {tier['name']}; the tier cannot rise, but controls can change)"
+
     notes: List[str] = []
     if prohibited:
         notes.append("This use case falls in a prohibited tier. Stop the work; there is no approval path.")
-    if unanswered:
-        notes.append("Some questions are unanswered. Answering them can only keep or raise the tier.")
+        if unanswered:
+            notes.append(
+                f"{len(unanswered)} question(s) are unanswered, but answers can only keep or raise a tier, "
+                "so the prohibited result is final."
+            )
+    elif unanswered:
+        rise = f"; the tier could rise to {could_rise_to['name']}" if could_rise_to is not None else ""
+        notes.append(
+            f"The questionnaire is incomplete: {len(unanswered)} of {len(policy['questions'])} questions are "
+            f"unanswered, so the {tier['name']} tier is provisional{rise}. Answers can keep or raise the tier and "
+            "add controls, never lower them. Before presenting any tier, ask the user the unanswered questions, or "
+            "record each one in the Assumptions Ledger with the answer you assumed, then re-run the calculator."
+        )
     if within_cap is False:
         notes.append(
             f"Planned autonomy {requested} exceeds the launch cap {cap} for the {tier['name']} tier. "
@@ -406,6 +431,8 @@ def classify(
             "rank": tier["rank"],
             "description": tier.get("description", ""),
         },
+        "status": status,
+        "headline": headline,
         "prohibited": prohibited,
         "triggered_rules": triggered,
         "complete": not unanswered,
@@ -435,20 +462,24 @@ def render_markdown(result: Dict[str, Any]) -> str:
     policy = result["policy"]
     tier = result["tier"]
     lines = [
-        f"**Risk tier: {tier['name']}** | Policy: {policy['id']} v{policy['version']} ({policy['source']})",
+        f"**Risk tier: {result['headline']}** | Policy: {policy['id']} v{policy['version']} ({policy['source']})",
         "",
     ]
-    if result["triggered_rules"]:
-        lines += ["| Rule | Tier | Reason |", "|---|---|---|"]
-        lines += [f"| {r['id']} | {r['tier']} | {r['reason']} |" for r in result["triggered_rules"]]
-    else:
-        lines.append(f"No rule triggered; default tier `{tier['id']}` applies.")
-    lines.append("")
     if result["unanswered_questions"]:
         lines.append("**Unanswered questions:** " + ", ".join(f"`{q}`" for q in result["unanswered_questions"]))
         if result["tier_could_rise_to"]:
             lines.append(f"Depending on those answers the tier could rise to **{result['tier_could_rise_to']}**.")
         lines.append("")
+    if result["triggered_rules"]:
+        lines += ["| Rule | Tier | Reason |", "|---|---|---|"]
+        lines += [f"| {r['id']} | {r['tier']} | {r['reason']} |" for r in result["triggered_rules"]]
+    elif result["unanswered_questions"]:
+        lines.append(
+            f"No rule triggered so far; the default tier `{tier['id']}` applies until every question is answered."
+        )
+    else:
+        lines.append(f"No rule triggered; default tier `{tier['id']}` applies.")
+    lines.append("")
     if not result["prohibited"]:
         cap = result["max_autonomy_at_launch"]
         planned = result["planned_autonomy"] or "not stated"
@@ -518,6 +549,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     source.add_argument("--validate-policy", action="store_true", help="validate the policy and exit")
     parser.add_argument("--policy", metavar="FILE", help="policy file (default: see module docstring)")
     parser.add_argument("--format", choices=("json", "md"), default="json", help="output format")
+    parser.add_argument(
+        "--strict", action="store_true", help="exit 4 when any question is unanswered (for CI); the result still prints"
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -547,6 +581,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         sys.stdout.write(render_markdown(result))
     else:
         sys.stdout.write(json.dumps(result, indent=2) + "\n")
+    if args.strict and result["status"] == "incomplete":
+        print("error: --strict: unanswered questions: " + ", ".join(result["unanswered_questions"]), file=sys.stderr)
+        return 4
     return 0
 
 

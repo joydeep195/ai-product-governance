@@ -116,6 +116,56 @@ def test_unanswered_questions_are_reported(risk_engine: ModuleType, policy: dict
     assert result["tier_could_rise_to"] == "prohibited"
 
 
+def test_complete_answers_lead_with_the_tier(risk_engine: ModuleType, policy: dict[str, Any]) -> None:
+    result = risk_engine.classify(policy, answers(customer_facing=True))
+    assert result["status"] == "complete"
+    assert result["headline"] == "Limited"
+
+
+def test_empty_questionnaire_leads_with_incomplete_not_a_tier(
+    risk_engine: ModuleType, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """An agent reading the output must not see a bare tier first when nothing has been answered."""
+    assert risk_engine.main(["--answers-json", "{}", "--format", "md"]) == 0
+    out = capsys.readouterr().out
+    assert out.startswith("**Risk tier: Incomplete (provisional Minimal; could rise to Prohibited)**")
+    assert "**Risk tier: Minimal**" not in out
+
+    assert risk_engine.main(["--answers-json", "{}"]) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["status"] == "incomplete"
+    assert result["headline"] == "Incomplete (provisional Minimal; could rise to Prohibited)"
+    assert result["tier"]["id"] == "minimal"  # the provisional tier stays available to existing readers
+    assert "ask the user the unanswered questions" in result["notes"][0]
+    assert "Assumptions Ledger" in result["notes"][0]
+
+
+def test_strict_exits_4_on_an_incomplete_questionnaire_but_still_prints(
+    risk_engine: ModuleType, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert risk_engine.main(["--answers-json", "{}", "--strict"]) == 4
+    captured = capsys.readouterr()
+    assert json.loads(captured.out)["status"] == "incomplete"
+    assert "unanswered questions" in captured.err
+    assert risk_engine.main(["--answers-json", json.dumps(answers()), "--strict"]) == 0
+
+
+def test_incomplete_headline_when_the_tier_cannot_rise(risk_engine: ModuleType, policy: dict[str, Any]) -> None:
+    partial = answers(sensitive_data=True)
+    del partial["uses_retrieval"]  # no rule reads it, but it can still add a control
+    result = risk_engine.classify(policy, partial)
+    assert result["status"] == "incomplete"
+    assert result["tier_could_rise_to"] is None
+    assert result["headline"] == "Incomplete (provisional High; the tier cannot rise, but controls can change)"
+
+
+def test_prohibited_is_final_even_when_incomplete(risk_engine: ModuleType, policy: dict[str, Any]) -> None:
+    result = risk_engine.classify(policy, {"prohibited_practices": ["social_scoring"]})
+    assert result["status"] == "incomplete"
+    assert result["headline"] == "Prohibited"
+    assert any("final" in note for note in result["notes"])
+
+
 @pytest.mark.parametrize(
     ("bad", "message"),
     [

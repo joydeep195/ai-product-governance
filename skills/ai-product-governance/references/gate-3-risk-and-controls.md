@@ -5,7 +5,9 @@
 
 ## 1. Classify the risk tier
 
-Answer the policy questionnaire (`python scripts/risk_tier.py --questions`), then run the calculator on the answers. The tier is the highest tier triggered by any rule. A prohibited trigger stops the work. Unanswered questions are reported, because answering them can only raise the tier.
+Answer the policy questionnaire (`python scripts/risk_tier.py --questions`), then run the calculator on the answers. The tier is the highest tier triggered by any rule. A prohibited trigger stops the work.
+
+If any question is unanswered, the calculator reports `"status": "incomplete"` and a headline such as `Incomplete (provisional Minimal; could rise to Prohibited)`, because answering can only keep or raise the tier and add controls. Never present a provisional tier as the tier. Ask the user the unanswered questions; if they want a draft now, record each unanswered question in the Assumptions Ledger with the answer you assumed, show the tier those assumptions produce and the tier it could rise to, and re-run the calculator when the answers arrive. Add `--strict` in CI to fail (exit code 4) on an incomplete questionnaire.
 
 The default tiers, summarised (the policy file is authoritative):
 
