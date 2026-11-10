@@ -87,8 +87,8 @@ this repository and ask it to evaluate the skill: say "evaluate the skill", or u
 file and an MCP prompt). The agent follows the skill's
 [`references/evaluate-this-skill.md`](../skills/ai-product-governance/references/evaluate-this-skill.md):
 
-1. It tells you the cost (20 answers and 20 gradings for the full suite, against your plan's usage) and waits for
-   your go-ahead.
+1. It tells you the cost (28 answers and 28 gradings per trial of the full suite, against your plan's usage),
+   recommends three trials (`/ai-eval --trials 3`), and waits for your go-ahead.
 2. It runs `aipg eval-kit create --agent-run --tool "<tool> (<model>)"`. Each file in the kit's `prompts/` folder is
    a complete task: whether its sub-agent may use the skill, the request, and the file to save the answer in.
 3. It starts a **fresh sub-agent** per task and sends it one line, ``Read `<task file>` and do exactly what it
@@ -117,7 +117,8 @@ aipg eval-kit score evals/kits/<kit id>         # 3. after you paste the grading
 3. **Score:** the toolkit scores everything offline and writes the same report, gates and JUnit output as an
    automatic run.
 
-A one-trial kit is 20 answers plus 20 gradings: slow, but it works with any tool and needs no setup.
+A one-trial kit is 28 answers plus 28 gradings: slow, but it works with any tool and needs no setup. Use three
+trials (`--trials 3`) when the result has to separate a real change from chance.
 
 Each run writes `evals/results/<run id>/`:
 
@@ -145,6 +146,14 @@ cut the run short):
 `aipg eval --compare <results.json>` adds a `max_regression` gate for every subject: it fails when the subject's
 with-skill mean score is more than `gates.max_regression` below the baseline's. CI passes
 `--compare evals/baselines/latest.json`.
+
+**Only shared scenarios are compared.** The gate compares the mean score over the scenarios both runs contain,
+using the per-scenario scores in the baseline's `cells`. A scenario added since the baseline is listed as "new, not
+compared", and one the run left out (for example with `--scenario`) as "in the baseline but not run", so adding a
+hard scenario cannot fail the gate and dropping one cannot pass it. When no scenario is shared, the gate is
+skipped. A baseline written without `cells` falls back to comparing the overall means, and the gate says so.
+After new scenarios land, refresh the baseline (`--update-baseline`, or commit a reviewed agent-run result) so they
+are covered.
 
 **Which baseline score a subject is compared with.** First, the baseline's results for the same subject id (an
 automated run of `claude-code` against an earlier automated run of `claude-code`). Failing that, a kit result that
@@ -206,7 +215,7 @@ ready subject, such as `anthropic-api`, and the report shows the gate as skipped
 ## Cost
 
 `aipg eval --dry-run` prints an order-of-magnitude estimate from configured prices. A full default run (one
-subject, 10 scenarios, 2 arms, 3 trials, plus judging) is roughly $10 at the listed Claude Opus 5.5 prices; one
+subject, 14 scenarios, 2 arms, 3 trials, plus judging) is roughly $14 at the listed Claude Opus 5.5 prices; one
 trial is about a third of that. `--max-cost-usd` stops starting new trials once measured spend reaches the ceiling.
 
 ## Known limitations
@@ -216,7 +225,7 @@ trial is about a third of that. `--max-cost-usd` stops starting new trials once 
   family than the subject. Calibrate against human labels before relying on small differences.
 - **Arm leakage.** With-skill responses often follow the skill's templates, which a judge might recognise. Criteria
   test substance rather than format to limit the effect.
-- **Small samples.** Ten scenarios × three trials gives directional evidence, not precise estimates. Treat
+- **Small samples.** Fourteen scenarios × three trials gives directional evidence, not precise estimates. Treat
   differences of a few points as noise.
 - **Triggering is measured only for native hosts.** API subjects get the skill activated directly. The `claude-code`
   subject measures whether Claude Code chooses to load it; other tools need their own native runs.

@@ -63,7 +63,7 @@ def test_eval_dry_run_detects_the_one_tool_you_have(
     assert main(["eval", "--dry-run", "--trials", "1", "--config", str(path)]) == 0
     out = capsys.readouterr().out
     assert " -> claude-code" in out and "ready" in out
-    assert "Plan: 1 model(s) x 10 scenario(s) x 2 arm(s) x 1 trial(s)" in out
+    assert "Plan: 1 model(s) x 14 scenario(s) x 2 arm(s) x 1 trial(s)" in out
     assert "graded by claude-code/claude-opus-5-5, effort high (the same tool)" in out
     assert "usage counts against that plan" in out
 

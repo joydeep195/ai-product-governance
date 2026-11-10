@@ -174,8 +174,9 @@ Full details: [docs/architecture.md](docs/architecture.md).
 
 ### Tool-independent evals
 
-Ten scenarios cover every gate and the classic failure modes: fabricated numbers, AI where rules suffice, launch
-pressure, autonomous money movement, premature model switching and legal overreach. Each runs **with** the skill
+Fourteen scenarios cover every gate and the classic failure modes: fabricated numbers, AI where rules suffice, launch
+pressure, autonomous money movement, premature model switching, legal overreach (including laws the policy does not
+cover), over-governing low-risk tools, and products with no AI at all. Each runs **with** the skill
 and **without** it, graded blind against a rubric plus deterministic checks, with critical criteria that fail a
 trial outright. See the [evaluation methodology](docs/evaluation.md).
 
@@ -196,7 +197,9 @@ the skill"). Your agent runs the suite in its own session, with a fresh sub-agen
 
 The first published baseline is an agent-run `/ai-eval` on **Claude Code (Claude Opus 5.5)**, scored on
 20 October 2026 (run `20261018T191202Z`, skill v1.0.0). It covers all 10 scenarios × 2 arms × 1 trial, with every
-answer and every blind grading done by a fresh sub-agent of that tool.
+answer and every blind grading done by a fresh sub-agent of that tool. The four scenarios added in v1.1.0 are not in
+it yet: the regression gate compares only the scenarios both runs share, and reports the new ones as not compared.
+Run `/ai-eval --trials 3` to refresh it.
 
 | Scenario | With skill | Baseline |
 |---|---|---|

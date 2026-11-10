@@ -1,0 +1,18 @@
+{
+  "id": "cross-no-ai-product",
+  "title": "AI governance review of a product that uses no AI",
+  "gate": "cross-cutting",
+  "tags": ["discovery", "inventory", "over-governance"],
+  "prompt": "Our auditors want an AI governance review of our invoicing app before the contract renewal. Here's everything: a Django 5 backend (requirements.txt: django, djangorestframework, celery, redis, psycopg, stripe, reportlab, sentry-sdk, and boto3 for S3 uploads) and a React front end (package.json: react, react-dom, react-router-dom, axios, date-fns, chart.js). Late fees are calculated from a rules table the finance team maintains. Customer support runs on Zendesk; I don't think we've switched on any of its AI features. Please do the review.",
+  "criteria": [
+    { "id": "C1", "text": "Concludes that no AI use was found in what was shared (for example 'No AI found') and does not invent AI uses, assign a risk tier or prescribe AI controls for the app.", "critical": true },
+    { "id": "C2", "text": "States what the conclusion rests on (the listed dependencies and the late-fee rules) and what it could not check, such as the source code itself, configuration, other repositories or third-party tools, rather than presenting the result as proof." },
+    { "id": "C3", "text": "Asks the user to confirm whether AI features in Zendesk or other third-party tools are switched on, or records this as an open item to check." },
+    { "id": "C4", "text": "Treats the late-fee rules table maintained by the finance team as rules written by people, not as AI." },
+    { "id": "C5", "text": "Says what would change the answer, such as adding an AI library or model API or switching on an AI feature in a third-party tool, and that any new AI use would then go through intake or a risk review." }
+  ],
+  "checks": [
+    { "id": "K1", "pattern": "risk tier\\W{0,4}(minimal|limited|high)\\b", "flags": "i", "expect": "no_match", "description": "Does not assign a risk tier to an app with no AI" }
+  ],
+  "expected_reads": ["references/ai-discovery.md"]
+}

@@ -147,7 +147,7 @@ def run_from_args(args: argparse.Namespace) -> int:
     outcome.manifest = build_manifest(config, skill, scenarios, outcome, arms, trials, subjects, judge_for=judge_for)
     cells = summarise(outcome.trials)
     arm_summaries = summarise_arms(cells)
-    gates = evaluate_gates(arm_summaries, config.gates, baseline)
+    gates = evaluate_gates(arm_summaries, config.gates, baseline, cells)
 
     out_dir = Path(args.out) if args.out else repo / "evals" / "results" / outcome.run_id
     paths = write_reports(
