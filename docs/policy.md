@@ -111,8 +111,15 @@ Validate before you publish:
 
 ```bash
 python skills/ai-product-governance/scripts/risk_tier.py --validate-policy --policy path/to/policy.json
-aipg validate          # also checks every policy under examples/ and warns if a higher tier is weaker than a lower one
+aipg validate          # also checks every policy under examples/ and warns about weak or redundant structure
 ```
+
+`aipg validate` warns when a higher tier drops a control that a lower tier requires, and when a conditional control
+can never add anything. A conditional is redundant when its condition already triggers a rule whose tier, and every
+tier above it, requires the control: for example, privacy review conditional on personal data, when personal data
+already makes the use case limited risk and the limited tier requires privacy review. Remove the conditional, or
+take the control out of the tier if it should depend on the condition. The check reports only what it can prove from
+the conditions, so it never warns falsely, but it can miss a redundancy.
 
 ## Regulatory crosswalk
 

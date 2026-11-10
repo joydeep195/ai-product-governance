@@ -192,8 +192,8 @@ For **<users>**, **<AI capability>** will move **<metric>** from **<baseline>** 
 | Loaded hourly cost | | |
 | Baseline cost per task | | |
 | Tasks per month | | |
-| Fixed monthly cost | | |
-| One-time cost | | |
+| Fixed monthly cost (incl. running the risk tier's controls) | | |
+| One-time cost (incl. setting up the risk tier's controls) | | |
 
 ## 3. Results
 Paste the calculator output (`scripts/unit_economics.py --format md`).

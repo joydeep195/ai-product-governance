@@ -184,13 +184,7 @@
     { "control": "HUM-02", "when": { "question": "autonomy_level", "equals": "L3" }, "reason": "Every action needs human approval at L3." },
     { "control": "SEC-02", "when": { "question": "takes_actions", "equals": true }, "reason": "The system can change state through tools." },
     { "control": "OPS-03", "when": { "question": "takes_actions", "equals": true }, "reason": "Every action must be traceable." },
-    { "control": "PRV-04", "when": { "question": "uses_retrieval", "equals": true }, "reason": "Retrieval must respect document permissions." },
-    { "control": "PRV-01", "when": { "question": "personal_data", "equals": true }, "reason": "Personal data is processed." },
-    { "control": "PRV-03", "when": { "question": "third_party_model_provider", "equals": true }, "reason": "Data is shared with an external model provider." },
-    { "control": "TRN-01", "when": { "any": [
-      { "question": "customer_facing", "equals": true },
-      { "question": "external_publication", "equals": true }
-    ] }, "reason": "People outside the organisation encounter AI output." }
+    { "control": "PRV-04", "when": { "question": "uses_retrieval", "equals": true }, "reason": "Retrieval must respect document permissions." }
   ],
   "frameworks": [
     {"id": "EU AI Act", "title": "Regulation (EU) 2024/1689 (Artificial Intelligence Act)", "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj", "last_verified": "2026-11-10", "note": "In force. Amended by Regulation (EU) 2026/1744 (Digital Omnibus on AI), published 24 July 2026, including when high-risk obligations apply: check the consolidated text for current dates of application."},

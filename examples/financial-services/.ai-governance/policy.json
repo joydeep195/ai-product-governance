@@ -487,38 +487,6 @@
       "reason": "Retrieval must respect document permissions."
     },
     {
-      "control": "PRV-01",
-      "when": {
-        "question": "personal_data",
-        "equals": true
-      },
-      "reason": "Personal data is processed."
-    },
-    {
-      "control": "PRV-03",
-      "when": {
-        "question": "third_party_model_provider",
-        "equals": true
-      },
-      "reason": "Data is shared with an external model provider."
-    },
-    {
-      "control": "TRN-01",
-      "when": {
-        "any": [
-          {
-            "question": "customer_facing",
-            "equals": true
-          },
-          {
-            "question": "external_publication",
-            "equals": true
-          }
-        ]
-      },
-      "reason": "People outside the organisation encounter AI output."
-    },
-    {
       "control": "TRN-03",
       "when": {
         "question": "consequential_decisions",

@@ -113,7 +113,7 @@ organisation's rules. See the [policy guide](docs/policy.md) and an
 
 ```console
 $ python skills/ai-product-governance/scripts/risk_tier.py --answers examples/inputs/refund-agent.answers.json --format md
-**Risk tier: High** | Policy: aipg-default v1.1.0 (bundled default policy)
+**Risk tier: High** | Policy: aipg-default v2.0.0 (bundled default policy)
 
 | Rule | Tier | Reason |
 |---|---|---|
@@ -121,6 +121,7 @@ $ python skills/ai-product-governance/scripts/risk_tier.py --answers examples/in
 | L-01 | limited | People outside the organisation see the output or interact with the AI. |
 ...
 **Autonomy:** planned L4; maximum at launch L3.
+...
 > Planned autonomy L4 exceeds the launch cap L3 for the High tier. Launch at L3 or lower and promote with evidence.
 ```
 
@@ -164,7 +165,7 @@ Full details: [docs/architecture.md](docs/architecture.md).
 
 | Check | What it guarantees |
 |---|---|
-| 127 unit and integration tests on Linux, Windows and macOS, Python 3.11-3.14 | Engines, MCP server, adapters and eval harness behave as specified |
+| Unit and integration tests (`pytest`) on Linux, Windows and macOS, Python 3.11-3.14 | Engines, MCP server, adapters and eval harness behave as specified |
 | Bundled scripts tested on Python 3.9 | They run in code-interpreter sandboxes |
 | `ruff`, `ruff format`, `mypy --strict` | Clean, consistently typed code |
 | `aipg validate --strict` | Agent Skills spec compliance, policy schema, links, version consistency, size budgets |

@@ -29,8 +29,10 @@ Every task ends up completed, either by the AI path or by the fallback path when
 | `loaded_hourly_cost` | Fully loaded cost of one hour of the reviewer's time |
 | `baseline_cost_per_task` | Cost of today's process per task |
 | `tasks_per_month` | Expected volume |
-| `fixed_monthly_cost` | Hosting, monitoring, eval runs, share of on-call |
-| `one_time_cost` | Build, data preparation, evaluation, launch |
+| `fixed_monthly_cost` | Hosting, monitoring, eval runs, share of on-call, and the running cost of the controls the risk tier requires |
+| `one_time_cost` | Build, data preparation, evaluation, launch, and setting up the controls the risk tier requires |
+
+**Price the controls.** The risk tier (Gate 3) decides which controls are mandatory, and they are not free. Put their set-up, such as a privacy review, red-team testing, audit logging, a kill switch and approvals, in `one_time_cost`. Put their running cost, such as sampled human review, continuous evaluation, log storage and re-certification, in `fixed_monthly_cost`. Review of every output stays in `review_minutes_per_task`. If Gate 3 has not run yet, assume the controls of the likely tier and record that in the Assumptions Ledger: a business case that only works without its mandatory controls does not work.
 
 ### Formulas
 
@@ -84,5 +86,6 @@ Set p50 and p95 targets for the interaction pattern and record them in the PRD. 
 
 - [ ] Value hypothesis with baseline, target and measurement method.
 - [ ] Unit economics with a source for every input: eval result, vendor price list, time study, or a labelled assumption.
+- [ ] The cost of the risk tier's mandatory controls included in `one_time_cost` and `fixed_monthly_cost`, or the tier assumed and logged.
 - [ ] Sensitivity analysis, with the break-even success rate compared against the eval target.
 - [ ] Latency budget (p50 and p95).

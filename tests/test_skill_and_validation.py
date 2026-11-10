@@ -14,6 +14,7 @@ from ai_product_governance.validate import (
     check_frontmatter,
     check_links,
     check_policy_file,
+    shadowed_conditionals,
     validate_repository,
 )
 from ai_product_governance.workflows import GATES, WORKFLOWS
@@ -116,6 +117,66 @@ def test_policy_that_weakens_a_higher_tier_is_flagged(policy: dict[str, Any], tm
     findings = check_policy_file(path, "policy.json")
     assert [f.level for f in findings] == ["warning"]
     assert "drops controls required by lower tier 'limited': PRV-01" in findings[0].message
+
+
+def _conditional(control: str, when: dict[str, Any]) -> dict[str, Any]:
+    return {"control": control, "when": when, "reason": "test"}
+
+
+def _yes(question: str) -> dict[str, Any]:
+    return {"question": question, "equals": True}
+
+
+def test_conditionals_that_a_tier_already_covers_are_flagged(policy: dict[str, Any], tmp_path: Path) -> None:
+    assert shadowed_conditionals(policy) == [], "the default policy has no redundant conditionals"
+    policy["conditional_controls"] += [
+        _conditional("PRV-01", _yes("personal_data")),
+        _conditional("TRN-01", {"any": [_yes("customer_facing"), _yes("external_publication")]}),
+        _conditional("PRV-03", {"all": [_yes("third_party_model_provider"), _yes("uses_retrieval")]}),
+    ]
+    messages = shadowed_conditionals(policy)
+    assert len(messages) == 3
+    assert messages[0].startswith("conditional control PRV-01 never adds anything: whenever its condition holds, L-03")
+    assert "L-01 (limited) or L-02 (limited)" in messages[1], "each branch of an 'any' can be covered by its own rule"
+    assert "L-04 (limited)" in messages[2], "one conjunct of an 'all' is enough"
+    path = tmp_path / "policy.json"
+    path.write_text(json.dumps(policy), encoding="utf-8")
+    assert sum("never adds anything" in f.message for f in check_policy_file(path, "p") if f.level == "warning") == 3
+
+
+@pytest.mark.parametrize(
+    ("control", "when"),
+    [
+        ("TRN-01", {"any": [_yes("customer_facing"), _yes("takes_actions")]}),  # no rule for takes_actions
+        ("EVAL-03", _yes("personal_data")),  # limited, the tier personal data sets, lacks EVAL-03
+        ("PRV-01", {"question": "max_financial_impact_per_action", "gte": 500}),  # below H-05's 1000
+        ("PRV-01", {"question": "max_financial_impact_per_action", "equals": True}),  # a boolean is not a number
+    ],
+)
+def test_conditionals_that_can_add_a_control_are_not_flagged(
+    policy: dict[str, Any], control: str, when: dict[str, Any]
+) -> None:
+    policy["conditional_controls"].append(_conditional(control, when))
+    assert shadowed_conditionals(policy) == []
+
+
+def test_conditionals_are_not_flagged_when_a_higher_tier_drops_the_control(policy: dict[str, Any]) -> None:
+    policy["conditional_controls"].append(_conditional("PRV-01", _yes("personal_data")))
+    high = next(t for t in policy["tiers"] if t["id"] == "high")
+    high["required_controls"].remove("PRV-01")
+    assert shadowed_conditionals(policy) == []
+
+
+def test_conditionals_implied_through_ranges_and_option_sets_are_flagged(policy: dict[str, Any]) -> None:
+    policy["conditional_controls"] += [
+        _conditional("EVAL-03", {"question": "max_financial_impact_per_action", "gte": 5000}),
+        _conditional("EVAL-03", {"question": "autonomy_level", "equals": "L5"}),
+        _conditional("OPS-04", {"question": "prohibited_practices", "contains_any": ["social_scoring"]}),
+    ]
+    messages = shadowed_conditionals(policy)
+    assert [m.split(" never")[0] for m in messages] == ["conditional control EVAL-03"]
+    assert "H-05 (high)" in messages[0]
+    # L5 alone triggers only L-06 (limited), which lacks EVAL-03. A rule that prohibits the use is not reported.
 
 
 def test_workspace_policy_overrides_default(risk_engine: Any, repo: Path) -> None:
