@@ -51,6 +51,11 @@ MAPPINGS_NOTE = (
     "Framework mappings are informative, not legal advice: they show which requirement each control addresses, "
     "not that a requirement applies or is met. Legal and compliance teams confirm applicability."
 )
+SOURCES_NOTE = (
+    "Regulatory facts are as of each source's last_verified date. State them 'as of <date>' and never present your "
+    "own memory of a law or regulation as current fact: if these sources do not cover it, say it is unverified and "
+    "route it to legal or compliance."
+)
 
 
 class PolicyError(ValueError):
@@ -191,6 +196,26 @@ def validate_policy(policy: Any) -> List[str]:
         problems.append("control IDs must be unique")
     for control in policy["controls"]:
         _check_mappings(control, problems)
+    if "frameworks" in policy:
+        listed = set()
+        for index, framework in enumerate(policy["frameworks"]):
+            fields_ok = isinstance(framework, dict) and all(
+                isinstance(framework.get(key), str) and framework[key]
+                for key in ("id", "title", "url", "last_verified")
+            )
+            if not fields_ok:
+                problems.append(f"framework #{index} needs non-empty 'id', 'title', 'url' and 'last_verified' strings")
+                continue
+            if framework["id"] in listed:
+                problems.append(f"framework '{framework['id']}' is listed more than once")
+            listed.add(framework["id"])
+        for control in policy["controls"]:
+            for mapping in control.get("mappings", []):
+                if isinstance(mapping, dict) and mapping.get("framework") and mapping["framework"] not in listed:
+                    problems.append(
+                        f"control '{control.get('id')}' maps to framework '{mapping['framework']}', "
+                        "which is not in 'frameworks' (add its official source and last_verified date)"
+                    )
 
     tiers: Dict[str, Dict[str, Any]] = {}
     ranks = set()
@@ -487,8 +512,15 @@ def classify(
             + ", ".join(f"`{q}`" for q in pending_questions)
             + " is answered: the answer may show they do not apply."
         )
+    cited: List[str] = []
+    for control in required:
+        cited += [m["framework"] for m in control["mappings"] if m["framework"] not in cited]
+    catalogue = {framework["id"]: framework for framework in policy.get("frameworks", [])}
+    sources = [dict(catalogue[name]) for name in cited if name in catalogue]
     if any(control["mappings"] for control in required):
         notes.append(MAPPINGS_NOTE)
+    if sources:
+        notes.append(SOURCES_NOTE)
 
     return {
         "policy": {
@@ -520,6 +552,7 @@ def classify(
         "eval_requirements": tier.get("eval_requirements"),
         "recertification_months": tier.get("recertification_months"),
         "autonomy_promotion": policy.get("autonomy_promotion"),
+        "sources": sources,
         "notes": notes,
     }
 
@@ -584,6 +617,13 @@ def render_markdown(result: Dict[str, Any]) -> str:
                 )
             )
         lines.append(f"**Re-certification:** every {result['recertification_months']} months")
+        if result.get("sources"):
+            lines += ["", "**Sources** (official text; facts as of the date each was last verified):", ""]
+            lines += [
+                f"- {s['id']}: {s['title']}. {s['url']} (last verified {s['last_verified']})"
+                + (f". {s['note']}" if s.get("note") else "")
+                for s in result["sources"]
+            ]
     for note in result["notes"]:
         lines += ["", f"> {note}"]
     return "\n".join(lines) + "\n"

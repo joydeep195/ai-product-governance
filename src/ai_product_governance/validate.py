@@ -159,6 +159,16 @@ def check_policy_file(path: Path, label: str) -> list[Finding]:
     findings = [Finding("error", label, problem) for problem in policy_problems(document)]
     if findings:
         return findings
+    mapped = any(control.get("mappings") for control in document["controls"])
+    if mapped and "frameworks" not in document:
+        findings.append(
+            Finding(
+                "warning",
+                label,
+                "controls map to frameworks but the policy has no 'frameworks' list: add each framework's official "
+                "source and last_verified date so regulatory facts can be stated as of a date",
+            )
+        )
     tiers = sorted((t for t in document["tiers"] if not t.get("prohibited")), key=lambda t: t["rank"])
     for lower, higher in itertools.pairwise(tiers):
         missing = set(lower["required_controls"]) - set(higher["required_controls"])

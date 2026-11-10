@@ -98,12 +98,15 @@ The default control catalogue:
 
 ## 6. Regulatory flags (not legal advice)
 
-Route to legal and compliance review whenever one of these applies:
+Route to legal and compliance review whenever one of these applies. Each flag names its official source and the date a maintainer last confirmed that source was current. You cannot look anything up, so state these facts "as of" that date and say the law may have changed since. Never add a regulatory fact from memory as if it were current: if a question goes beyond these flags and the sources in the policy's `frameworks`, say you could not verify it and route it.
 
-- **EU users or the EU market:** obligations under the EU AI Act depend on the risk category, ranging from transparency duties (for example for chatbots and AI-generated content) to extensive requirements for high-risk uses such as employment, credit scoring, education and access to essential services.
-- **Automated decisions with legal or similarly significant effects on people:** GDPR Article 22 and comparable laws apply, and high-risk processing typically needs a data protection impact assessment.
-- **Sector rules:** for example model risk management in banking, health data rules (such as HIPAA in the US), and consumer-protection and advertising law for generated content. In the US, SR 26-2 (OCC Bulletin 2026-13) replaced SR 11-7 in April 2026; it places generative and agentic AI models outside its scope, but says a bank's own risk management and governance practices should still set the controls for them.
-- **Management frameworks** that structure an AI programme: NIST AI RMF and ISO/IEC 42001.
+- **EU users or the EU market:** the EU AI Act sets obligations by risk category, from transparency duties (for example for chatbots and AI-generated content) to extensive requirements for high-risk uses such as employment, credit scoring, education and access to essential services. The Digital Omnibus on AI, Regulation (EU) 2026/1744 (published 24 July 2026), amended it, including when high-risk obligations apply, so check the consolidated text for current dates. Sources: [Regulation (EU) 2024/1689](https://eur-lex.europa.eu/eli/reg/2024/1689/oj), [Regulation (EU) 2026/1744](https://eur-lex.europa.eu/eli/reg/2026/1744/oj) · last verified 2026-11-10.
+- **Automated decisions with legal or similarly significant effects on people:** GDPR Article 22 and comparable laws apply, and high-risk processing typically needs a data protection impact assessment (GDPR Article 35). Source: [Regulation (EU) 2016/679](https://eur-lex.europa.eu/eli/reg/2016/679/oj) · last verified 2026-11-10.
+- **Model risk management in US banking:** SR 26-2 and OCC Bulletin 2026-13 (17 April 2026) replaced SR 11-7 and OCC Bulletin 2011-12. Footnote 3 of the guidance places generative and agentic AI models outside its scope, but says a bank's own risk management and governance practices should guide the controls for them. Sources: [SR 26-2](https://www.federalreserve.gov/supervisionreg/srletters/SR2602.htm), [OCC Bulletin 2026-13](https://www.occ.gov/news-issuances/bulletins/2026/bulletin-2026-13.html) · last verified 2026-11-10.
+- **Health data in the US:** HIPAA. Source: [HHS, Health Information Privacy](https://www.hhs.gov/hipaa/index.html) · last verified 2026-11-10.
+- **Other sector rules**, such as consumer-protection and advertising law for generated content: these vary by jurisdiction and sector, and no source is bundled. Name the area and route it; do not describe its requirements.
+- **Management frameworks** that structure an AI programme: NIST AI RMF 1.0 (NIST states it is being revised) and ISO/IEC 42001:2023. Sources: [NIST AI RMF](https://www.nist.gov/itl/ai-risk-management-framework), [ISO/IEC 42001](https://www.iso.org/standard/42001) · last verified 2026-11-10.
+- **Other jurisdictions** (for example India, Singapore, Brazil, or the UK under the default policy): the policy maps none of their laws. Name the law or regulator the user mentions or that plainly applies, say the policy does not cover it and that you have not verified its current requirements, and route it to legal and compliance.
 
 ## Exit criteria
 
@@ -111,4 +114,4 @@ Route to legal and compliance review whenever one of these applies:
 - [ ] Risk register covering every category, with `N/A — <reason>` where a category does not apply.
 - [ ] Autonomy level chosen within the tier cap, with promotion criteria.
 - [ ] Control plan: every required and conditional control with its implementation, evidence, owner and the framework references from its `mappings`, marked as informative, not legal advice; every not-applicable control listed with its reason.
-- [ ] Required approvers identified and regulatory flags routed.
+- [ ] Required approvers identified and regulatory flags routed, each stated as of its source's last-verified date.

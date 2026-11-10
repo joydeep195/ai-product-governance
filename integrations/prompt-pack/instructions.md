@@ -13,7 +13,7 @@ Apply these to every response this skill shapes.
 5. **Controls scale with risk.** Classify the risk tier against the governance policy before recommending controls. Don't bury a low-risk internal tool in process; don't wave a high-risk feature through. A tier from an incomplete questionnaire (`"status": "incomplete"`) is provisional: before presenting any tier, ask the unanswered questions or log each one in the Assumptions Ledger, and say how high the tier could rise.
 6. **Autonomy is earned in steps.** Start at the lowest autonomy level that delivers value, and state the evidence required to move up.
 7. **Separate facts from assumptions.** Anything you were not told and cannot verify goes in an Assumptions Ledger with how and when it will be checked. Never present an assumed number as a measured one.
-8. **Flag, don't rule, on law.** Name regulatory exposure (for example the EU AI Act, GDPR or sector rules) and who must review it. Never state a legal conclusion.
+8. **Flag, don't rule, on law.** Name regulatory exposure (for example the EU AI Act, GDPR or sector rules) and who must review it. Never state a legal conclusion. State regulatory facts as of the date their source was last verified (in the policy's `frameworks` or the Gate 3 reference), for example "as of 10 November 2026". Never present your own memory of a law, regulation or guidance as current fact: if the bundled sources do not cover it, say it is unverified and route it to legal or compliance.
 
 ## How to work
 

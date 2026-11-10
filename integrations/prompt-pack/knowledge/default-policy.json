@@ -192,6 +192,13 @@
       { "question": "external_publication", "equals": true }
     ] }, "reason": "People outside the organisation encounter AI output." }
   ],
+  "frameworks": [
+    {"id": "EU AI Act", "title": "Regulation (EU) 2024/1689 (Artificial Intelligence Act)", "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj", "last_verified": "2026-11-10", "note": "In force. Amended by Regulation (EU) 2026/1744 (Digital Omnibus on AI), published 24 July 2026, including when high-risk obligations apply: check the consolidated text for current dates of application."},
+    {"id": "NIST AI RMF 1.0", "title": "NIST AI 100-1, Artificial Intelligence Risk Management Framework (AI RMF 1.0)", "url": "https://www.nist.gov/itl/ai-risk-management-framework", "last_verified": "2026-11-10", "note": "Released 26 January 2023 and still the current version; NIST states it is being revised, so check for a newer version."},
+    {"id": "ISO/IEC 42001:2023", "title": "ISO/IEC 42001:2023, Information technology - Artificial intelligence - Management system", "url": "https://www.iso.org/standard/42001", "last_verified": "2026-11-10", "note": "Edition 1 (2023) is the published edition."},
+    {"id": "GDPR", "title": "Regulation (EU) 2016/679 (General Data Protection Regulation)", "url": "https://eur-lex.europa.eu/eli/reg/2016/679/oj", "last_verified": "2026-11-10", "note": "In force."},
+    {"id": "OWASP Top 10 for LLM Applications", "title": "OWASP Top 10 for LLM Applications 2025", "url": "https://genai.owasp.org/llm-top-10/", "last_verified": "2026-11-10", "note": "The 2025 edition is the latest the OWASP GenAI Security Project publishes."}
+  ],
   "controls": [
     { "id": "GOV-01", "name": "AI inventory registration", "description": "Register the use case in the AI inventory with an accountable owner, tier and status.", "evidence": "Inventory entry ID",
       "mappings": [

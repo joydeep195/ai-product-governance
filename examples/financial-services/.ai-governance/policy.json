@@ -575,6 +575,113 @@
       "reason": "AI output becomes a communication with customers or the public."
     }
   ],
+  "frameworks": [
+    {
+      "id": "EU AI Act",
+      "title": "Regulation (EU) 2024/1689 (Artificial Intelligence Act)",
+      "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj",
+      "last_verified": "2026-11-10",
+      "note": "In force. Amended by Regulation (EU) 2026/1744 (Digital Omnibus on AI), published 24 July 2026, including when high-risk obligations apply: check the consolidated text for current dates of application."
+    },
+    {
+      "id": "NIST AI RMF 1.0",
+      "title": "NIST AI 100-1, Artificial Intelligence Risk Management Framework (AI RMF 1.0)",
+      "url": "https://www.nist.gov/itl/ai-risk-management-framework",
+      "last_verified": "2026-11-10",
+      "note": "Released 26 January 2023 and still the current version; NIST states it is being revised, so check for a newer version."
+    },
+    {
+      "id": "ISO/IEC 42001:2023",
+      "title": "ISO/IEC 42001:2023, Information technology - Artificial intelligence - Management system",
+      "url": "https://www.iso.org/standard/42001",
+      "last_verified": "2026-11-10",
+      "note": "Edition 1 (2023) is the published edition."
+    },
+    {
+      "id": "GDPR",
+      "title": "Regulation (EU) 2016/679 (General Data Protection Regulation)",
+      "url": "https://eur-lex.europa.eu/eli/reg/2016/679/oj",
+      "last_verified": "2026-11-10",
+      "note": "In force."
+    },
+    {
+      "id": "OWASP Top 10 for LLM Applications",
+      "title": "OWASP Top 10 for LLM Applications 2025",
+      "url": "https://genai.owasp.org/llm-top-10/",
+      "last_verified": "2026-11-10",
+      "note": "The 2025 edition is the latest the OWASP GenAI Security Project publishes."
+    },
+    {
+      "id": "SR 26-2",
+      "title": "SR 26-2 / OCC Bulletin 2026-13, Revised Guidance on Model Risk Management (17 April 2026)",
+      "url": "https://www.federalreserve.gov/supervisionreg/srletters/SR2602.htm",
+      "last_verified": "2026-11-10",
+      "note": "Supersedes SR 11-7; OCC Bulletin 2026-13 rescinds OCC 2011-12. Footnote 3 of the guidance puts generative and agentic AI models outside its scope and says a bank's own risk management and governance practices should guide the controls for them."
+    },
+    {
+      "id": "DORA",
+      "title": "Regulation (EU) 2022/2554 (Digital Operational Resilience Act)",
+      "url": "https://eur-lex.europa.eu/eli/reg/2022/2554/oj",
+      "last_verified": "2026-11-10",
+      "note": "In force."
+    },
+    {
+      "id": "ECOA / Regulation B",
+      "title": "Equal Credit Opportunity Act and Regulation B (12 CFR Part 1002)",
+      "url": "https://www.consumerfinance.gov/rules-policy/regulations/1002/",
+      "last_verified": "2026-11-10",
+      "note": "The CFPB's interactive regulation marks this the current version."
+    },
+    {
+      "id": "FCRA",
+      "title": "Fair Credit Reporting Act (15 U.S.C. 1681 et seq.)",
+      "url": "https://www.ftc.gov/legal-library/browse/statutes/fair-credit-reporting-act",
+      "last_verified": "2026-11-10",
+      "note": "The FTC page links the text as revised in March 2026."
+    },
+    {
+      "id": "SEC",
+      "title": "SEC Rule 17a-4 (17 CFR 240.17a-4), records to be preserved by brokers and dealers",
+      "url": "https://www.ecfr.gov/current/title-17/section-240.17a-4",
+      "last_verified": "2026-11-10",
+      "note": "Current in the eCFR."
+    },
+    {
+      "id": "FINRA",
+      "title": "FINRA Rules 3110 and 4511, and Regulatory Notice 24-09 on generative AI (27 June 2024)",
+      "url": "https://www.finra.org/rules-guidance/rulebooks/finra-rules",
+      "last_verified": "2026-11-10",
+      "note": "Regulatory Notice 24-09 reminds members that existing rules, including Rule 3110, apply to generative AI; it creates no new requirements."
+    },
+    {
+      "id": "MiFID II",
+      "title": "Directive 2014/65/EU (Markets in Financial Instruments Directive II)",
+      "url": "https://eur-lex.europa.eu/eli/dir/2014/65/oj",
+      "last_verified": "2026-11-10",
+      "note": "In force, as amended."
+    },
+    {
+      "id": "FCA Consumer Duty",
+      "title": "FCA Handbook PRIN 2A, The Consumer Duty",
+      "url": "https://handbook.fca.org.uk/handbook/prin2a",
+      "last_verified": "2026-11-10",
+      "note": "Last updated by the FCA on 26 June 2026."
+    },
+    {
+      "id": "FCA Handbook",
+      "title": "FCA Handbook DISP 1, Treating complainants fairly",
+      "url": "https://handbook.fca.org.uk/handbook/disp1",
+      "last_verified": "2026-11-10",
+      "note": "Current in the FCA Handbook."
+    },
+    {
+      "id": "Interagency third-party guidance (2023)",
+      "title": "Interagency Guidance on Third-Party Relationships: Risk Management (Fed, FDIC, OCC; 6 June 2023)",
+      "url": "https://www.occ.gov/news-issuances/bulletins/2023/bulletin-2023-17.html",
+      "last_verified": "2026-11-10",
+      "note": "OCC Bulletin 2023-17; not marked as rescinded."
+    }
+  ],
   "controls": [
     {
       "id": "GOV-01",

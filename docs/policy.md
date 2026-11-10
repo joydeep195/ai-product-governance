@@ -131,14 +131,40 @@ they are asking about:
 `risk_tier.py` copies the mappings onto every required control in its JSON output and adds a "Maps to" column to
 the Markdown table. `framework` and `reference` are required; `note` is optional.
 
+### Sources and "last verified" dates
+
+The skill runs inside the user's own AI tool and never looks anything up, and a model can fill a gap from its
+training data with a fact that has since changed. So every framework a policy cites is listed once in a
+`frameworks` array with its official source and the date someone last confirmed that source was current:
+
+```json
+"frameworks": [
+  { "id": "EU AI Act", "title": "Regulation (EU) 2024/1689 (Artificial Intelligence Act)",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj", "last_verified": "2026-11-10",
+    "note": "In force. Amended by Regulation (EU) 2026/1744 (Digital Omnibus on AI), published 24 July 2026, ..." }
+]
+```
+
+`id` must equal the `framework` value used in mappings; when the list is present, a mapping to an unlisted framework
+is an error, and `aipg validate` warns about a policy that has mappings but no list. `risk_tier.py` returns the
+sources behind the required controls (`sources` in JSON, a Sources list in Markdown), and the skill tells the agent
+to state regulatory facts "as of" those dates and never to present its own memory of a law as current. The Gate 3
+playbook's regulatory flags carry the same links and dates.
+
+`last_verified` means the source was opened and checked as current (not superseded, withdrawn or replaced) on that
+date; it does not re-certify every mapping. Re-check the sources at least yearly, and whenever a regulator
+announces a change, then update the dates.
+
 | Policy | Frameworks mapped |
 |---|---|
 | Default | EU AI Act (Regulation (EU) 2024/1689), NIST AI RMF 1.0 subcategories, ISO/IEC 42001:2023 Annex A controls (and clause 8.2), GDPR for the privacy controls, OWASP Top 10 for LLM Applications 2025 for the security controls |
 | Financial services | All of the above, plus the US agencies' model risk guidance SR 26-2 (OCC Bulletin 2026-13), DORA (Regulation (EU) 2022/2554), ECOA and Regulation B (12 CFR 1002), FCRA, SEC Rule 17a-4, FINRA rules, MiFID II, the FCA Consumer Duty (PRIN 2A) and DISP, and the 2023 US interagency third-party guidance |
 
-SR 26-2 replaced SR 11-7 in April 2026 and places generative and agentic AI models outside its formal scope,
-expecting a bank's own risk management and governance practices to cover them; the policy cites it for the
-model-risk disciplines (inventory, validation, monitoring, vendor models) that `MRM-01` and related controls apply.
+SR 26-2 (with OCC Bulletin 2026-13, both 17 April 2026) replaced SR 11-7 and OCC Bulletin 2011-12. Footnote 3 of
+the guidance places generative and agentic AI models outside its scope and says a bank's own risk management and
+governance practices should guide the controls for them; the policy cites it for the model-risk disciplines
+(inventory, validation, monitoring, vendor models) that `MRM-01` and related controls apply. Source:
+[SR 26-2](https://www.federalreserve.gov/supervisionreg/srletters/SR2602.htm), last verified 10 November 2026.
 
 References cite an article, clause, rule or subcategory number only where it could be cited with confidence, and
 name the section otherwise (the interagency guidance's "Third-party relationship life cycle"). Tests check every
