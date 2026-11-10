@@ -12,8 +12,10 @@ ALL_NO: dict[str, Any] = {
     "external_publication": False,
     "personal_data": False,
     "sensitive_data": False,
+    "outputs_concern_people": False,
     "consequential_decisions": False,
     "regulated_advice": False,
+    "inside_regulated_process": False,
     "vulnerable_users": False,
     "third_party_model_provider": False,
     "uses_retrieval": False,
@@ -114,6 +116,161 @@ def test_unanswered_questions_are_reported(risk_engine: ModuleType, policy: dict
     assert "sensitive_data" in result["unanswered_questions"]
     assert result["tier"]["id"] == "limited"
     assert result["tier_could_rise_to"] == "prohibited"
+
+
+def test_complete_answers_lead_with_the_tier(risk_engine: ModuleType, policy: dict[str, Any]) -> None:
+    result = risk_engine.classify(policy, answers(customer_facing=True))
+    assert result["status"] == "complete"
+    assert result["headline"] == "Limited"
+
+
+def test_empty_questionnaire_leads_with_incomplete_not_a_tier(
+    risk_engine: ModuleType, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """An agent reading the output must not see a bare tier first when nothing has been answered."""
+    assert risk_engine.main(["--answers-json", "{}", "--format", "md"]) == 0
+    out = capsys.readouterr().out
+    assert out.startswith("**Risk tier: Incomplete (provisional Minimal; could rise to Prohibited)**")
+    assert "**Risk tier: Minimal**" not in out
+
+    assert risk_engine.main(["--answers-json", "{}"]) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["status"] == "incomplete"
+    assert result["headline"] == "Incomplete (provisional Minimal; could rise to Prohibited)"
+    assert result["tier"]["id"] == "minimal"  # the provisional tier stays available to existing readers
+    assert "ask the user the unanswered questions" in result["notes"][0]
+    assert "Assumptions Ledger" in result["notes"][0]
+
+
+def test_strict_exits_4_on_an_incomplete_questionnaire_but_still_prints(
+    risk_engine: ModuleType, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert risk_engine.main(["--answers-json", "{}", "--strict"]) == 4
+    captured = capsys.readouterr()
+    assert json.loads(captured.out)["status"] == "incomplete"
+    assert "unanswered questions" in captured.err
+    assert risk_engine.main(["--answers-json", json.dumps(answers()), "--strict"]) == 0
+
+
+def test_incomplete_headline_when_the_tier_cannot_rise(risk_engine: ModuleType, policy: dict[str, Any]) -> None:
+    partial = answers(sensitive_data=True)
+    del partial["uses_retrieval"]  # no rule reads it, but it can still add a control
+    result = risk_engine.classify(policy, partial)
+    assert result["status"] == "incomplete"
+    assert result["tier_could_rise_to"] is None
+    assert result["headline"] == "Incomplete (provisional High; the tier cannot rise, but controls can change)"
+
+
+def test_prohibited_is_final_even_when_incomplete(risk_engine: ModuleType, policy: dict[str, Any]) -> None:
+    result = risk_engine.classify(policy, {"prohibited_practices": ["social_scoring"]})
+    assert result["status"] == "incomplete"
+    assert result["headline"] == "Prohibited"
+    assert any("final" in note for note in result["notes"])
+
+
+def test_running_inside_a_regulated_process_is_limited_not_high(
+    risk_engine: ModuleType, policy: dict[str, Any]
+) -> None:
+    """Drafting part of a regulatory report is regulated work, but not regulated advice: it is not high by itself."""
+    result = risk_engine.classify(policy, answers(inside_regulated_process=True))
+    assert result["tier"]["id"] == "limited"
+    assert [r["id"] for r in result["triggered_rules"]] == ["L-07"]
+    assert risk_engine.classify(policy, answers(regulated_advice=True))["tier"]["id"] == "high"
+
+
+def test_answers_from_before_the_split_still_work_and_explain_it(
+    risk_engine: ModuleType, policy: dict[str, Any]
+) -> None:
+    old = {k: v for k, v in answers(regulated_advice=True).items() if k != "inside_regulated_process"}
+    result = risk_engine.classify(policy, old)
+    assert result["tier"]["id"] == "high"  # an old "yes" never drops a tier without a person re-checking it
+    assert result["status"] == "incomplete"
+    assert result["unanswered_questions"] == ["inside_regulated_process"]
+    split = [note for note in result["notes"] if "was split out of `regulated_advice`" in note]
+    assert len(split) == 1 and "Re-check `regulated_advice`" in split[0]
+
+    old_no = {k: v for k, v in answers().items() if k != "inside_regulated_process"}
+    result = risk_engine.classify(policy, old_no)
+    assert result["headline"] == "Incomplete (provisional Minimal; could rise to Limited)"
+    assert any("was split out of" in note for note in result["notes"])
+
+
+def test_no_split_note_when_neither_question_is_answered(risk_engine: ModuleType, policy: dict[str, Any]) -> None:
+    assert not any("split out of" in note for note in risk_engine.classify(policy, {})["notes"])
+
+
+def test_policy_validation_checks_split_from(risk_engine: ModuleType, policy: dict[str, Any]) -> None:
+    question = next(q for q in policy["questions"] if q["id"] == "inside_regulated_process")
+    question["split_from"] = "no_such_question"
+    assert any("split_from unknown question 'no_such_question'" in p for p in risk_engine.validate_policy(policy))
+
+
+# An internal AI that drafts an infrastructure resilience report: high risk because one wrong report can be costly,
+# but nobody is the subject of the output, so fairness and contestability have nothing to act on.
+RESILIENCE_REPORT = answers(max_financial_impact_per_action=5000)
+
+
+def test_controls_with_nobody_affected_are_shown_as_not_applicable(
+    risk_engine: ModuleType, policy: dict[str, Any]
+) -> None:
+    result = risk_engine.classify(policy, RESILIENCE_REPORT)
+    assert result["tier"]["id"] == "high"
+    required = [c["id"] for c in result["required_controls"]]
+    ruled_out = {c["id"]: c for c in result["not_applicable_controls"]}
+    assert "EVAL-03" not in required and "TRN-02" not in required
+    assert set(ruled_out) == {"EVAL-03", "TRN-02"}
+    assert ruled_out["TRN-02"]["required_by"] == "tier: high"
+    assert ruled_out["TRN-02"]["reason"].startswith("No person is the subject of the output")
+    assert any("do not drop them silently" in note for note in result["notes"])
+
+
+def test_not_applicable_controls_are_listed_in_markdown(
+    risk_engine: ModuleType, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert risk_engine.main(["--answers-json", json.dumps(RESILIENCE_REPORT), "--format", "md"]) == 0
+    out = capsys.readouterr().out
+    assert "**Not applicable:**" in out
+    assert "| EVAL-03 | Fairness evaluation | tier: high | not applicable: No person is the subject" in out
+    assert out.isascii()
+
+
+@pytest.mark.parametrize(
+    ("overrides", "required", "ruled_out"),
+    [
+        ({"outputs_concern_people": True}, {"EVAL-03", "TRN-02"}, set()),
+        ({"consequential_decisions": True}, {"EVAL-03", "TRN-02"}, set()),
+        ({"customer_facing": True}, {"EVAL-03"}, {"TRN-02"}),  # users outside the org, but nobody is assessed
+        ({"vulnerable_users": True}, {"EVAL-03"}, {"TRN-02"}),
+    ],
+)
+def test_answers_that_bring_people_into_scope_keep_the_controls(
+    risk_engine: ModuleType,
+    policy: dict[str, Any],
+    overrides: dict[str, Any],
+    required: set[str],
+    ruled_out: set[str],
+) -> None:
+    result = risk_engine.classify(policy, {**RESILIENCE_REPORT, **overrides})
+    assert required <= {c["id"] for c in result["required_controls"]}
+    assert {c["id"] for c in result["not_applicable_controls"]} == ruled_out
+
+
+def test_unanswered_applicability_keeps_the_control_required(risk_engine: ModuleType, policy: dict[str, Any]) -> None:
+    partial = dict(RESILIENCE_REPORT)
+    del partial["outputs_concern_people"]
+    result = risk_engine.classify(policy, partial)
+    assert {"EVAL-03", "TRN-02"} <= {c["id"] for c in result["required_controls"]}
+    assert result["not_applicable_controls"] == []
+    assert any("EVAL-03, TRN-02 stay required until `outputs_concern_people`" in note for note in result["notes"])
+
+
+def test_policy_validation_checks_applicability(risk_engine: ModuleType, policy: dict[str, Any]) -> None:
+    fairness = next(c for c in policy["controls"] if c["id"] == "EVAL-03")
+    del fairness["not_applicable_reason"]
+    fairness["applies_when"] = {"question": "nobody_asked_this", "equals": True}
+    problems = risk_engine.validate_policy(policy)
+    assert any("must be given together" in p for p in problems)
+    assert any("applies_when: unknown question 'nobody_asked_this'" in p for p in problems)
 
 
 @pytest.mark.parametrize(

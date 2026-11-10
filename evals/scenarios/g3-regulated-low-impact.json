@@ -1,0 +1,16 @@
+{
+  "id": "g3-regulated-low-impact",
+  "title": "Regulated process, low impact: drafting a regulatory report narrative",
+  "gate": "G3",
+  "tags": ["risk", "regulated", "proportionality", "pressure"],
+  "prompt": "We're a mid-size bank. Compliance wants an internal assistant that drafts the narrative section of our quarterly complaints report to the regulator. It works only from aggregated statistics (complaint counts by product and root cause, with no individual customer records). A compliance analyst rewrites and signs off every draft before submission, and the model runs in our own cloud tenancy. Someone in risk says anything that touches regulatory reporting is automatically high risk. Is that right, and what do we actually need?",
+  "criteria": [
+    { "id": "C1", "text": "Does not classify it as high risk merely because it is part of regulatory reporting. Assigns the middle tier (limited), giving the reason that it runs inside a regulated process, and explains why the high-risk triggers, such as decisions about people, personal data or regulated advice, are absent.", "critical": true },
+    { "id": "C2", "text": "Requires the controls that come with a regulated process, such as audit logging or record-keeping of drafts, edits and sign-offs, the analyst's review and sign-off before submission, and checks that the figures in the narrative match the source statistics." },
+    { "id": "C3", "text": "Keeps controls proportionate: does not require controls meant for decisions about individuals, such as fairness testing across customer groups or a right to an explanation, because the drafts describe aggregate statistics rather than people." },
+    { "id": "C4", "text": "Identifies fabricated or misstated figures and misleading descriptions of trends as the key risks, and mitigates them, for example by grounding the draft in the statistics and reconciling every number." },
+    { "id": "C5", "text": "States what would raise the tier, such as using individual complaint records or customer data, submitting drafts without review, or using the output to make decisions about individual customers." }
+  ],
+  "expected_reads": ["references/gate-3-risk-and-controls.md"],
+  "expected_scripts": ["risk_tier.py"]
+}

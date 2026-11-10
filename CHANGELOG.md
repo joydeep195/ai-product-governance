@@ -6,6 +6,11 @@ Claude plugin manifest always share one version; `aipg validate` enforces it.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-10
+
+The default policy moves to 2.0.0 and the financial-services example to 3.0.0: both add questions, so answer files
+written for earlier versions come back as incomplete until the new questions are answered (see Changed).
+
 ### Security
 
 - The MCP server's Streamable HTTP transport can require a bearer token, read from `AIPG_SERVER_TOKEN` or
@@ -24,6 +29,41 @@ Claude plugin manifest always share one version; `aipg validate` enforces it.
 
 ### Added
 
+- **AI discovery.** Before governing AI, find it. The new playbook `references/ai-discovery.md` and template
+  `assets/templates/ai-inventory.md` walk the agent through an inventory with its own file and search tools:
+  dependency manifests, SDK imports, model endpoints, API-key variable names, prompts, model files and AI inside
+  third-party products. Product AI is listed apart from coding assistants and eval harnesses. When nothing is
+  found, the result is an evidenced "No AI found" with what was searched and not covered, and no tier. A new
+  `ai-inventory` workflow (MCP prompt and Copilot prompt file) and SKILL.md route start it.
+- `scripts/ai_inventory.py` (standard library, Python 3.9+) gives discovery a deterministic starting point. It is
+  read-only, makes no network calls, follows no symbolic links, skips dependency and build folders, and prints
+  names and locations, never secret values. It is not exposed over MCP, because the server never reads the user's
+  files.
+- **Incomplete questionnaires lead with "Incomplete".** When questions are unanswered, `risk_tier.py` returns
+  `"status": "incomplete"` and a headline such as `Incomplete (provisional Minimal; could rise to Prohibited)`,
+  lists the unanswered questions first, and still exits 0. `--strict` (and `aipg tier --strict`) exits 4 instead,
+  for CI. A new operating rule tells the agent to ask the questions or log assumptions before presenting a tier.
+- **Controls can be ruled out.** A control's optional `applies_when` condition and `not_applicable_reason` let the
+  policy say when a control does not apply. Results list such controls under "Not applicable" with the reason,
+  rather than dropping them; unanswered questions keep them required. The default and bank policies rule out
+  fairness evaluation (`EVAL-03`) and explanation and contestability (`TRN-02`) when no person is the subject of
+  the output and it influences no decisions about people, using the new question `outputs_concern_people`.
+  `aipg check` does not require records to close controls the answers rule out.
+- **Sources and last-verified dates.** A policy's optional `frameworks` list gives each framework cited in control
+  mappings its official source URL and the date a maintainer last confirmed it was current. Results list the
+  sources behind the required controls, and the skill states regulatory facts "as of" that date and never presents
+  its memory of a law as current fact. Every Gate 3 regulatory flag now names its source and last-verified date
+  (10 November 2026), including SR 26-2 and OCC Bulletin 2026-13, which replaced SR 11-7 and OCC Bulletin
+  2011-12, and Regulation (EU) 2026/1744, which amended the EU AI Act. `aipg validate` warns when controls map to
+  frameworks but the policy has no `frameworks` list.
+- `aipg validate` warns about conditional controls that can never add anything, because whenever their condition
+  holds, a rule sets a tier that already requires the control. The check proves each implication from the
+  conditions, so it never warns falsely.
+- Four eval scenarios: a product with no AI (`cross-no-ai-product`), over-governance of a minimal internal tool
+  (`g3-minimal-internal-tool`), a regulated process with low impact (`g3-regulated-low-impact`), and an Indian
+  lending fintech asking what laws the policy does not cover require (`g3-india-lending-flag-not-rule`). The suite
+  has 14 scenarios, and the docs recommend three trials (`/ai-eval --trials 3`).
+- `docs/roadmap.md` lists planned work that this release does not include.
 - `/ai-eval` evaluates the skill inside the AI tool the user already works in, with no sign-in, CLI or API key.
   The agent follows the skill's new `references/evaluate-this-skill.md`: it runs
   `aipg eval-kit create --agent-run`, starts a fresh sub-agent for every answer and blind grading, and scores the
@@ -39,14 +79,14 @@ Claude plugin manifest always share one version; `aipg validate` enforces it.
   approver has not signed, re-certification has lapsed or the policy version changed; `--format md` renders a
   pull-request comment. `aipg validate` checks example records, and the financial-services example includes a
   complete one. The policy guide shows how to run the check in CI.
-- The financial-services example policy (2.4.0) adds adverse action reasons (`TRN-03`), a third-party dependency
+- The financial-services example policy adds adverse action reasons (`TRN-03`), a third-party dependency
   and exit plan (`TPR-01`), complaint monitoring (`OPS-06`) and communications record-keeping (`OPS-07`), each
   applied by the questionnaire answers that call for it; an `external_model_dependency` question; and a compliance
   officer approver for the high tier.
 - Regulatory crosswalk: a control can list the framework requirements it addresses in an optional `mappings`
-  array (`framework`, `reference`, optional `note`). The default policy (1.1.0) maps every control to the EU AI
+  array (`framework`, `reference`, optional `note`). The default policy maps every control to the EU AI
   Act, NIST AI RMF 1.0 subcategories and ISO/IEC 42001 Annex A, plus GDPR and the OWASP Top 10 for LLM
-  Applications where relevant. The financial-services example (2.5.0) adds SR 26-2 (which replaced SR 11-7),
+  Applications where relevant. The financial-services example adds SR 26-2 (which replaced SR 11-7),
   DORA, ECOA and Regulation B, FCRA, SEC Rule 17a-4, FINRA rules, MiFID II and the FCA Consumer Duty.
   `risk_tier.py` returns the mappings with each required control and adds a "Maps to" column to its Markdown
   output. The mappings are informative, not legal advice. The Gate 3 playbook and the risk-assessment template's
@@ -65,6 +105,25 @@ Claude plugin manifest always share one version; `aipg validate` enforces it.
 - `results.json` records how each subject was produced (`subjects`: id, provider, model, effort, and for kits
   `indicative` and `stands_in_for`), so a baseline copied from it describes itself.
 
+### Changed
+
+- `regulated_advice` is split. It now asks only about regulated advice to people (medical, legal, financial or tax;
+  high risk). The new question `inside_regulated_process` asks whether the system runs inside a regulated process,
+  such as KYC, anti-money-laundering or fraud monitoring, complaints, claims or regulatory reporting, and rule `L-07`
+  makes that limited risk; other rules decide whether it is high. A question's new `split_from` field makes the
+  result explain the split when an answer file has the old question but not the new one, so old answers are
+  re-checked rather than silently reused.
+- Default policy 2.0.0 and financial-services example 3.0.0: the new questions `outputs_concern_people` and
+  `inside_regulated_process`, rule `L-07`, `applies_when` on `EVAL-03` and `TRN-02`, and a `frameworks` list. The
+  conditional controls `PRV-01`, `PRV-03` and `TRN-01` are removed because the tiers already require them; results
+  are unchanged. The example use-case record is re-certified against 3.0.0.
+- The eval regression gate compares the mean over the scenarios both runs share, using the baseline's
+  per-scenario scores. New scenarios are listed as not compared and missing ones as not run, so adding a hard
+  scenario cannot fail the gate and dropping one cannot pass it. Baselines without per-scenario scores fall back to
+  the overall means, and the gate says so.
+- Gate 1 and the business case template count the set-up and running cost of the risk tier's mandatory controls in
+  `one_time_cost` and `fixed_monthly_cost`.
+
 ### Fixed
 
 - `aipg eval --compare` no longer skips the regression gate silently when no baseline subject matches. The plan
@@ -78,6 +137,7 @@ Claude plugin manifest always share one version; `aipg validate` enforces it.
 ### Documentation
 
 - The README opens with the install command; the installation guide covers common `npx` failures.
+- The README no longer hard-codes the number of tests, and its sample risk-tier output matches policy 2.0.0.
 
 ## [1.0.0] - 2026-10-18
 

@@ -20,6 +20,7 @@ from ai_product_governance.evals.scenarios import Scenario, ScenarioError, load_
 from ai_product_governance.evals.scoring import (
     ArmSummary,
     BaselineScore,
+    CellSummary,
     GateResult,
     evaluate_gates,
     match_baseline,
@@ -176,6 +177,62 @@ def test_regression_gate_without_a_matching_subject_is_skipped_not_silent(
     assert "no baseline subject matches 'anthropic-api'" in gate.detail and listed in gate.detail
 
 
+def _cells(subject: str, scores: dict[str, float]) -> list[CellSummary]:
+    return [CellSummary(subject, s, "with-skill", 1, v, 0.0, 1.0, 0, 0, None) for s, v in scores.items()]
+
+
+def _shared_gate(current: dict[str, float], baseline: dict[str, float]) -> GateResult:
+    cells = _cells("m", current)
+    arms = summarise_arms(cells)
+    base = [BaselineScore("m", sum(baseline.values()) / len(baseline), scenarios=tuple(sorted(baseline.items())))]
+    (gate,) = [g for g in evaluate_gates(arms, Gates(), base, cells) if g.name == "max_regression"]
+    return gate
+
+
+def test_regression_gate_compares_only_the_scenarios_both_runs_share() -> None:
+    gate = _shared_gate({"a": 1.0, "b": 0.98, "new-hard": 0.2}, {"a": 1.0, "b": 1.0})
+    assert gate.passed and not gate.skipped, "a weak new scenario is not a regression"
+    assert gate.detail == (
+        "0.990 vs baseline 1.000 on the 2 scenarios both runs share (maximum drop 0.050); new, not compared: new-hard"
+    )
+    gate = _shared_gate({"a": 0.8, "b": 1.0}, {"a": 1.0, "b": 1.0, "retired": 0.1})
+    assert not gate.passed, "a drop on a shared scenario still fails, whatever the dropped scenario scored"
+    assert gate.detail.endswith("(maximum drop 0.050); in the baseline but not run: retired")
+
+
+def test_regression_gate_with_no_shared_scenario_is_skipped() -> None:
+    gate = _shared_gate({"x": 0.1}, {"a": 1.0})
+    assert gate.skipped and gate.passed
+    assert (
+        gate.detail == "not compared: no scenario in common with the baseline; new, not compared: x; in the "
+        "baseline but not run: a"
+    )
+
+
+def test_regression_gate_falls_back_to_overall_means_for_baselines_without_cells() -> None:
+    cells = _cells("m", {"a": 0.9})
+    (gate,) = [
+        g
+        for g in evaluate_gates(summarise_arms(cells), Gates(), [BaselineScore("m", 0.92)], cells)
+        if g.name == "max_regression"
+    ]
+    assert gate.passed
+    assert gate.detail.endswith("the baseline records no per-scenario scores, so the overall means are compared")
+
+
+def test_parse_baseline_reads_per_scenario_scores_from_cells() -> None:
+    data = {
+        "arms": [{"subject": "m", "arm": "with-skill", "mean_score": 0.9}],
+        "cells": [
+            {"subject": "m", "scenario": "b", "arm": "with-skill", "mean_score": 0.8},
+            {"subject": "m", "scenario": "a", "arm": "with-skill", "mean_score": 1.0},
+            {"subject": "m", "scenario": "a", "arm": "baseline", "mean_score": 0.1},
+        ],
+    }
+    (score,) = parse_baseline(data)
+    assert score.scenarios == (("a", 1.0), ("b", 0.8))
+
+
 def test_parse_baseline_reads_how_each_subject_was_produced() -> None:
     arms = [
         {"subject": "Claude Code (Opus)", "arm": "with-skill", "mean_score": 1.0},
@@ -199,6 +256,7 @@ def test_committed_baseline_is_compared_with_the_claude_code_subject(repo: Path)
     (score,) = parse_baseline(data)
     assert score.stands_in_for == "claude-code" and score.indicative and score.provider == "agent-run"
     assert score.subject.startswith("Claude Code"), "the kit keeps its tool label as its subject id"
+    assert len(score.scenarios) == 10, "the committed baseline records per-scenario scores"
     gates = evaluate_gates(_with_skill("claude-code", 1.0) + _with_skill("anthropic-api", 1.0), Gates(), [score])
     regression = {g.subject: g for g in gates if g.name == "max_regression"}
     assert not regression["claude-code"].skipped and regression["claude-code"].passed

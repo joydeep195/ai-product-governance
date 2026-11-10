@@ -19,10 +19,10 @@ Every result names the policy ID, version and source, so artifacts are traceable
 | Section | Purpose |
 |---|---|
 | `tiers` | Ranked risk tiers with required controls, approvers, the maximum autonomy at launch, re-certification cadence and eval minimums. A tier with `"prohibited": true` stops the work |
-| `questions` | The questionnaire (boolean, number, enum, multiselect) |
+| `questions` | The questionnaire (boolean, number, enum, multiselect); `split_from` marks a question split out of an older one |
 | `rules` | Conditions that raise the tier; the highest triggered tier wins |
 | `conditional_controls` | Controls added by specific answers regardless of tier (for example permission-aware retrieval when RAG is used) |
-| `controls` | The control catalogue with the evidence each control requires and, optionally, the framework requirements it maps to |
+| `controls` | The control catalogue with the evidence each control requires and, optionally, the framework requirements it maps to and an `applies_when` condition that rules the control out |
 | `autonomy_levels`, `autonomy_promotion` | The L0-L5 ladder and the evidence needed to move up |
 | `incident_severities` | SEV definitions used by Gate 5 |
 
@@ -46,7 +46,48 @@ Conditions support `equals`, `in`, `contains_any`, `gte`, `lte`, and nesting wit
 ```
 
 Unanswered questions evaluate to "unknown". The result lists them and the highest tier they could still trigger,
-so a partially completed questionnaire never under-classifies silently.
+so a partially completed questionnaire never under-classifies silently. It also leads with that fact: the result
+carries `"status": "incomplete"` and a headline such as `Incomplete (provisional Minimal; could rise to Prohibited)`
+instead of a bare tier, and the skill tells the agent to ask the missing questions, or log them in the Assumptions
+Ledger, before it presents any tier. The calculator still exits 0, so an agent reads the explanation instead of
+falling back to classifying by hand; add `--strict` (to `risk_tier.py` or `aipg tier`) to exit 4 in CI instead.
+
+## Splitting a question: `split_from`
+
+A question that does two jobs over-classifies. The default policy's `regulated_advice` used to cover both regulated
+advice and running inside a regulated process, so almost every banking or fintech use came out high risk. Since
+policy 2.0.0 it asks only about regulated advice (rule `H-03`, high), and `inside_regulated_process` (rule `L-07`,
+limited) covers KYC checks, AML or fraud monitoring, complaints or dispute handling, claims handling and regulatory
+reporting. Whether such work is high risk is then decided by the rules that measure harm: decisions about people,
+sensitive data, financial impact and autonomy.
+
+The new question carries `"split_from": "regulated_advice"`. Answer files written before the split keep working:
+the key is unchanged, so an old `true` still produces the high tier until a person re-checks it, and an answer set
+without the new question is reported as incomplete with a note that explains the split and asks for both answers.
+Use `split_from` the same way when you split a question in your own policy.
+
+## Ruling controls out: `applies_when`
+
+Tiers and conditional controls can only add controls. A control whose purpose depends on the facts, such as
+fairness evaluation, which needs people whose results could differ, can carry an `applies_when` condition and a
+`not_applicable_reason`:
+
+```json
+{ "id": "TRN-02", "name": "Explanation and contestability", "...": "...",
+  "applies_when": { "any": [
+    { "question": "outputs_concern_people", "equals": true },
+    { "question": "consequential_decisions", "equals": true }
+  ] },
+  "not_applicable_reason": "No person is the subject of the output and it influences no decisions about people, so nobody is affected by an outcome they could ask to have explained or reviewed." }
+```
+
+Whenever a tier or a conditional requires the control and the answers make the condition false, the result lists it
+under `not_applicable_controls` (and a "Not applicable" table in Markdown) with the reason, instead of requiring it.
+An unanswered question keeps the control required. `aipg record new` and `aipg check` require only the applicable
+controls. The default policy uses this for `EVAL-03` (fairness evaluation) and `TRN-02` (explanation and
+contestability), based on the `outputs_concern_people` question: an internal AI that drafts an infrastructure
+report can be high risk because a wrong report is costly, yet have nobody to evaluate for fairness or to explain an
+outcome to. To make a control unconditional again, delete its `applies_when` and `not_applicable_reason`.
 
 ## Customising
 
@@ -70,8 +111,15 @@ Validate before you publish:
 
 ```bash
 python skills/ai-product-governance/scripts/risk_tier.py --validate-policy --policy path/to/policy.json
-aipg validate          # also checks every policy under examples/ and warns if a higher tier is weaker than a lower one
+aipg validate          # also checks every policy under examples/ and warns about weak or redundant structure
 ```
+
+`aipg validate` warns when a higher tier drops a control that a lower tier requires, and when a conditional control
+can never add anything. A conditional is redundant when its condition already triggers a rule whose tier, and every
+tier above it, requires the control: for example, privacy review conditional on personal data, when personal data
+already makes the use case limited risk and the limited tier requires privacy review. Remove the conditional, or
+take the control out of the tier if it should depend on the condition. The check reports only what it can prove from
+the conditions, so it never warns falsely, but it can miss a redundancy.
 
 ## Regulatory crosswalk
 
@@ -90,14 +138,40 @@ they are asking about:
 `risk_tier.py` copies the mappings onto every required control in its JSON output and adds a "Maps to" column to
 the Markdown table. `framework` and `reference` are required; `note` is optional.
 
+### Sources and "last verified" dates
+
+The skill runs inside the user's own AI tool and never looks anything up, and a model can fill a gap from its
+training data with a fact that has since changed. So every framework a policy cites is listed once in a
+`frameworks` array with its official source and the date someone last confirmed that source was current:
+
+```json
+"frameworks": [
+  { "id": "EU AI Act", "title": "Regulation (EU) 2024/1689 (Artificial Intelligence Act)",
+    "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj", "last_verified": "2026-11-10",
+    "note": "In force. Amended by Regulation (EU) 2026/1744 (Digital Omnibus on AI), published 24 July 2026, ..." }
+]
+```
+
+`id` must equal the `framework` value used in mappings; when the list is present, a mapping to an unlisted framework
+is an error, and `aipg validate` warns about a policy that has mappings but no list. `risk_tier.py` returns the
+sources behind the required controls (`sources` in JSON, a Sources list in Markdown), and the skill tells the agent
+to state regulatory facts "as of" those dates and never to present its own memory of a law as current. The Gate 3
+playbook's regulatory flags carry the same links and dates.
+
+`last_verified` means the source was opened and checked as current (not superseded, withdrawn or replaced) on that
+date; it does not re-certify every mapping. Re-check the sources at least yearly, and whenever a regulator
+announces a change, then update the dates.
+
 | Policy | Frameworks mapped |
 |---|---|
 | Default | EU AI Act (Regulation (EU) 2024/1689), NIST AI RMF 1.0 subcategories, ISO/IEC 42001:2023 Annex A controls (and clause 8.2), GDPR for the privacy controls, OWASP Top 10 for LLM Applications 2025 for the security controls |
 | Financial services | All of the above, plus the US agencies' model risk guidance SR 26-2 (OCC Bulletin 2026-13), DORA (Regulation (EU) 2022/2554), ECOA and Regulation B (12 CFR 1002), FCRA, SEC Rule 17a-4, FINRA rules, MiFID II, the FCA Consumer Duty (PRIN 2A) and DISP, and the 2023 US interagency third-party guidance |
 
-SR 26-2 replaced SR 11-7 in April 2026 and places generative and agentic AI models outside its formal scope,
-expecting a bank's own risk management and governance practices to cover them; the policy cites it for the
-model-risk disciplines (inventory, validation, monitoring, vendor models) that `MRM-01` and related controls apply.
+SR 26-2 (with OCC Bulletin 2026-13, both 17 April 2026) replaced SR 11-7 and OCC Bulletin 2011-12. Footnote 3 of
+the guidance places generative and agentic AI models outside its scope and says a bank's own risk management and
+governance practices should guide the controls for them; the policy cites it for the model-risk disciplines
+(inventory, validation, monitoring, vendor models) that `MRM-01` and related controls apply. Source:
+[SR 26-2](https://www.federalreserve.gov/supervisionreg/srletters/SR2602.htm), last verified 10 November 2026.
 
 References cite an article, clause, rule or subcategory number only where it could be cited with confidence, and
 name the section otherwise (the interagency guidance's "Third-party relationship life cycle"). Tests check every

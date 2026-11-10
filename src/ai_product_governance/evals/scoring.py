@@ -174,11 +174,18 @@ class BaselineScore:
     provider: str = ""  # how the baseline was produced: a provider such as "claude-code", or a kit mode
     stands_in_for: str = ""  # the automated subject id a kit result is compared as, if it names one
     indicative: bool = False  # an agent-run result: indicative evidence, not audited
+    # Per-scenario with-skill mean scores, from the baseline's `cells`, so a run is compared only on the scenarios
+    # both runs share. Empty for results written without cells; the overall means are then compared.
+    scenarios: tuple[tuple[str, float], ...] = ()
 
 
 def parse_baseline(data: dict[str, Any]) -> list[BaselineScore]:
     """The with-skill scores in a results.json, with what its `subjects` list says about how they were produced."""
     subjects = {str(s.get("id")): s for s in data.get("subjects", []) if isinstance(s, dict)}
+    per_scenario: dict[str, dict[str, float]] = {}
+    for cell in data.get("cells", []):
+        if isinstance(cell, dict) and cell.get("arm") == "with-skill":
+            per_scenario.setdefault(str(cell["subject"]), {})[str(cell["scenario"])] = float(cell["mean_score"])
     scores = []
     for arm in data.get("arms", []):
         if arm.get("arm") != "with-skill":
@@ -191,6 +198,7 @@ def parse_baseline(data: dict[str, Any]) -> list[BaselineScore]:
                 provider=str(described.get("provider") or ""),
                 stands_in_for=str(described.get("stands_in_for") or ""),
                 indicative=bool(described.get("indicative")),
+                scenarios=tuple(sorted(per_scenario.get(str(arm["subject"]), {}).items())),
             )
         )
     return scores
@@ -203,15 +211,24 @@ def match_baseline(subject: str, baseline: list[BaselineScore]) -> BaselineScore
 
 
 def evaluate_gates(
-    arms: list[ArmSummary], gates: Gates, baseline: list[BaselineScore] | None = None
+    arms: list[ArmSummary],
+    gates: Gates,
+    baseline: list[BaselineScore] | None = None,
+    cells: list[CellSummary] | None = None,
 ) -> list[GateResult]:
     """Apply the quality gates per subject.
 
     With a `baseline` (from `--compare`), every subject gets a `max_regression` gate: checked against its match
-    (see `match_baseline`), or reported as skipped when nothing in the baseline matches it.
+    (see `match_baseline`), or reported as skipped when nothing in the baseline matches it. Given this run's
+    `cells` and a baseline that records per-scenario scores, the gate compares only the scenarios both runs share,
+    so adding or removing scenarios cannot pass or fail it; new scenarios are listed as not compared.
     """
     results: list[GateResult] = []
     by_key = {(a.subject, a.arm): a for a in arms}
+    current: dict[str, dict[str, float]] = {}
+    for cell in cells or []:
+        if cell.arm == "with-skill":
+            current.setdefault(cell.subject, {})[cell.scenario] = cell.mean_score
     for subject in sorted({a.subject for a in arms}):
         skill = by_key.get((subject, "with-skill"))
         if skill is None:
@@ -241,11 +258,18 @@ def evaluate_gates(
                 )
             )
         if baseline is not None:
-            results.append(_regression_gate(subject, skill.mean_score, baseline, gates.max_regression))
+            scenarios = current.get(subject) if cells is not None else None
+            results.append(_regression_gate(subject, skill.mean_score, baseline, gates.max_regression, scenarios))
     return results
 
 
-def _regression_gate(subject: str, score: float, baseline: list[BaselineScore], max_drop: float) -> GateResult:
+def _regression_gate(
+    subject: str,
+    score: float,
+    baseline: list[BaselineScore],
+    max_drop: float,
+    scenarios: dict[str, float] | None = None,
+) -> GateResult:
     match = match_baseline(subject, baseline)
     if match is None:
         found = ", ".join(repr(b.subject) for b in baseline) or "no with-skill results"
@@ -259,9 +283,40 @@ def _regression_gate(subject: str, score: float, baseline: list[BaselineScore], 
     origin = f" from {match.subject!r}" if match.subject != subject else ""
     if match.indicative:
         origin += f" ({match.provider} result, indicative)"
+    if scenarios and match.scenarios:
+        return _shared_scenario_gate(subject, scenarios, dict(match.scenarios), origin, max_drop)
+    detail = f"{score:.3f} vs baseline {match.mean_score:.3f}{origin} (maximum drop {max_drop:.3f})"
+    if scenarios:
+        detail += "; the baseline records no per-scenario scores, so the overall means are compared"
+    return GateResult(subject, "max_regression", match.mean_score - score <= max_drop, detail)
+
+
+def _shared_scenario_gate(
+    subject: str, current: dict[str, float], base: dict[str, float], origin: str, max_drop: float
+) -> GateResult:
+    shared = sorted(set(current) & set(base))
+    new = sorted(set(current) - set(base))
+    not_run = sorted(set(base) - set(current))
+    extras = []
+    if new:
+        extras.append(f"new, not compared: {', '.join(new)}")
+    if not_run:
+        extras.append(f"in the baseline but not run: {', '.join(not_run)}")
+    suffix = "".join(f"; {item}" for item in extras)
+    if not shared:
+        return GateResult(
+            subject,
+            "max_regression",
+            True,
+            f"not compared: no scenario in common with the baseline{origin}{suffix}",
+            skipped=True,
+        )
+    now = statistics.fmean(current[s] for s in shared)
+    then = statistics.fmean(base[s] for s in shared)
+    count = "the 1 scenario" if len(shared) == 1 else f"the {len(shared)} scenarios"
     return GateResult(
         subject,
         "max_regression",
-        match.mean_score - score <= max_drop,
-        f"{score:.3f} vs baseline {match.mean_score:.3f}{origin} (maximum drop {max_drop:.3f})",
+        then - now <= max_drop,
+        f"{now:.3f} vs baseline {then:.3f}{origin} on {count} both runs share (maximum drop {max_drop:.3f}){suffix}",
     )

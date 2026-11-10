@@ -3,9 +3,10 @@
 
 Evaluates questionnaire answers against a governance policy (policy-as-code) and
 reports the risk tier, the rules that triggered it, required controls (with any
-framework mappings the policy defines), approvers, evaluation minimums and the
-autonomy cap at launch. The same answers and policy always produce the same
-result, so the output is suitable for audit trails.
+framework mappings the policy defines), controls the answers rule out (with the
+reason), approvers, evaluation minimums and the autonomy cap at launch. The same
+answers and policy always produce the same result, so the output is suitable for
+audit trails.
 
 Standard library only; runs on Python 3.9+.
 
@@ -21,8 +22,14 @@ Usage:
   python risk_tier.py --answers answers.json [--policy policy.json] [--format md]
   python risk_tier.py --answers-json '{"customer_facing": true, ...}'
   python risk_tier.py --validate-policy [--policy policy.json]
+  python risk_tier.py --answers answers.json --strict   # for CI: fail on unanswered questions
 
-Exit codes: 0 success; 2 invalid input or answers; 3 invalid or missing policy.
+An incomplete questionnaire still exits 0 and prints its result, with "status": "incomplete"
+and a headline such as "Incomplete (provisional Minimal; could rise to Prohibited)", so an
+agent reads why the tier is provisional instead of falling back to classifying by hand.
+
+Exit codes: 0 success; 2 invalid input or answers; 3 invalid or missing policy;
+4 the questionnaire is incomplete and --strict was given (the result is still printed).
 """
 
 from __future__ import annotations
@@ -43,6 +50,11 @@ LEAF_OPERATORS = ("equals", "in", "contains_any", "gte", "lte")
 MAPPINGS_NOTE = (
     "Framework mappings are informative, not legal advice: they show which requirement each control addresses, "
     "not that a requirement applies or is met. Legal and compliance teams confirm applicability."
+)
+SOURCES_NOTE = (
+    "Regulatory facts are as of each source's last_verified date. State them 'as of <date>' and never present your "
+    "own memory of a law or regulation as current fact: if these sources do not cover it, say it is unverified and "
+    "route it to legal or compliance."
 )
 
 
@@ -184,6 +196,26 @@ def validate_policy(policy: Any) -> List[str]:
         problems.append("control IDs must be unique")
     for control in policy["controls"]:
         _check_mappings(control, problems)
+    if "frameworks" in policy:
+        listed = set()
+        for index, framework in enumerate(policy["frameworks"]):
+            fields_ok = isinstance(framework, dict) and all(
+                isinstance(framework.get(key), str) and framework[key]
+                for key in ("id", "title", "url", "last_verified")
+            )
+            if not fields_ok:
+                problems.append(f"framework #{index} needs non-empty 'id', 'title', 'url' and 'last_verified' strings")
+                continue
+            if framework["id"] in listed:
+                problems.append(f"framework '{framework['id']}' is listed more than once")
+            listed.add(framework["id"])
+        for control in policy["controls"]:
+            for mapping in control.get("mappings", []):
+                if isinstance(mapping, dict) and mapping.get("framework") and mapping["framework"] not in listed:
+                    problems.append(
+                        f"control '{control.get('id')}' maps to framework '{mapping['framework']}', "
+                        "which is not in 'frameworks' (add its official source and last_verified date)"
+                    )
 
     tiers: Dict[str, Dict[str, Any]] = {}
     ranks = set()
@@ -214,6 +246,10 @@ def validate_policy(policy: Any) -> List[str]:
             problems.append(f"question '{question_id}' has unknown type '{question.get('type')}'")
         if question.get("type") in ("enum", "multiselect") and not question.get("options"):
             problems.append(f"question '{question_id}' needs options")
+    for question_id, question in questions.items():
+        source = question.get("split_from")
+        if source is not None and (source not in questions or source == question_id):
+            problems.append(f"question '{question_id}' is split_from unknown question '{source}'")
 
     seen_rules = set()
     for rule in policy["rules"]:
@@ -231,6 +267,20 @@ def validate_policy(policy: Any) -> List[str]:
         _check_condition(
             conditional.get("when"), questions, f"conditional control '{conditional.get('control')}'", problems
         )
+
+    for control in policy["controls"]:
+        has_condition = "applies_when" in control
+        reason = control.get("not_applicable_reason")
+        if has_condition != (reason is not None):
+            problems.append(
+                f"control '{control.get('id')}': 'applies_when' and 'not_applicable_reason' must be given together"
+            )
+        if reason is not None and (not isinstance(reason, str) or not reason.strip()):
+            problems.append(f"control '{control.get('id')}': 'not_applicable_reason' must be a non-empty string")
+        if has_condition:
+            _check_condition(
+                control["applies_when"], questions, f"control '{control.get('id')}' applies_when", problems
+            )
     return problems
 
 
@@ -310,6 +360,16 @@ def evaluate_condition(condition: Dict[str, Any], answers: Dict[str, Any]) -> Op
     raise PolicyError(f"Unsupported condition: {condition}")
 
 
+def condition_questions(condition: Dict[str, Any]) -> List[str]:
+    """Question IDs a condition reads, in order of first appearance."""
+    if "all" in condition or "any" in condition:
+        found: List[str] = []
+        for item in condition.get("all", condition.get("any", [])):
+            found += [question_id for question_id in condition_questions(item) if question_id not in found]
+        return found
+    return [condition["question"]]
+
+
 # --------------------------------------------------------------------------- classification
 
 
@@ -347,6 +407,8 @@ def classify(
             could_rise_to = candidate
 
     required: List[Dict[str, Any]] = []
+    not_applicable: List[Dict[str, Any]] = []
+    applicability_pending: List[str] = []
     seen = set()
 
     def add_control(control_id: str, required_by: str) -> None:
@@ -354,6 +416,20 @@ def classify(
             return
         seen.add(control_id)
         control = controls[control_id]
+        if "applies_when" in control:
+            applies = evaluate_condition(control["applies_when"], normalised)
+            if applies is False:
+                not_applicable.append(
+                    {
+                        "id": control_id,
+                        "name": control["name"],
+                        "required_by": required_by,
+                        "reason": control["not_applicable_reason"],
+                    }
+                )
+                return
+            if applies is None:
+                applicability_pending.append(control_id)
         required.append(
             {
                 "id": control_id,
@@ -379,18 +455,72 @@ def classify(
     if cap is not None and isinstance(requested, str) and requested in levels:
         within_cap = levels.index(requested) <= levels.index(cap)
 
+    status = "incomplete" if unanswered else "complete"
+    headline = tier["name"]
+    if unanswered and not prohibited:
+        if could_rise_to is not None:
+            headline = f"Incomplete (provisional {tier['name']}; could rise to {could_rise_to['name']})"
+        else:
+            headline = f"Incomplete (provisional {tier['name']}; the tier cannot rise, but controls can change)"
+
     notes: List[str] = []
     if prohibited:
         notes.append("This use case falls in a prohibited tier. Stop the work; there is no approval path.")
-    if unanswered:
-        notes.append("Some questions are unanswered. Answering them can only keep or raise the tier.")
+        if unanswered:
+            notes.append(
+                f"{len(unanswered)} question(s) are unanswered, but answers can only keep or raise a tier, "
+                "so the prohibited result is final."
+            )
+    elif unanswered:
+        rise = f"; the tier could rise to {could_rise_to['name']}" if could_rise_to is not None else ""
+        notes.append(
+            f"The questionnaire is incomplete: {len(unanswered)} of {len(policy['questions'])} questions are "
+            f"unanswered, so the {tier['name']} tier is provisional{rise}. Answers can keep or raise the tier and "
+            "add controls, never lower them. Before presenting any tier, ask the user the unanswered questions, or "
+            "record each one in the Assumptions Ledger with the answer you assumed, then re-run the calculator."
+        )
+    questions = {question["id"]: question for question in policy["questions"]}
+    for question_id in unanswered:
+        source = questions[question_id].get("split_from")
+        if source in normalised:
+            notes.append(
+                f'`{question_id}` was split out of `{source}`, which now asks only: "{questions[source]["text"]}" '
+                f"Answers written before the split may have folded `{question_id}` into `{source}`. Re-check "
+                f'`{source}` and answer `{question_id}`: "{questions[question_id]["text"]}"'
+            )
     if within_cap is False:
         notes.append(
             f"Planned autonomy {requested} exceeds the launch cap {cap} for the {tier['name']} tier. "
             f"Launch at {cap} or lower and promote with evidence."
         )
+    if not_applicable:
+        notes.append(
+            "Not applicable under this policy, given these answers: "
+            + "; ".join(f"{c['id']} ({c['name']}): {c['reason']}" for c in not_applicable)
+            + ". Show them in the control plan as 'not applicable' with the reason; do not drop them silently."
+        )
+    if applicability_pending:
+        pending_questions: List[str] = []
+        for control_id in applicability_pending:
+            pending_questions += [
+                q
+                for q in condition_questions(controls[control_id]["applies_when"])
+                if q in unanswered and q not in pending_questions
+            ]
+        notes.append(
+            f"{', '.join(applicability_pending)} stay required until "
+            + ", ".join(f"`{q}`" for q in pending_questions)
+            + " is answered: the answer may show they do not apply."
+        )
+    cited: List[str] = []
+    for control in required:
+        cited += [m["framework"] for m in control["mappings"] if m["framework"] not in cited]
+    catalogue = {framework["id"]: framework for framework in policy.get("frameworks", [])}
+    sources = [dict(catalogue[name]) for name in cited if name in catalogue]
     if any(control["mappings"] for control in required):
         notes.append(MAPPINGS_NOTE)
+    if sources:
+        notes.append(SOURCES_NOTE)
 
     return {
         "policy": {
@@ -406,6 +536,8 @@ def classify(
             "rank": tier["rank"],
             "description": tier.get("description", ""),
         },
+        "status": status,
+        "headline": headline,
         "prohibited": prohibited,
         "triggered_rules": triggered,
         "complete": not unanswered,
@@ -415,10 +547,12 @@ def classify(
         "planned_autonomy": requested,
         "planned_autonomy_within_cap": within_cap,
         "required_controls": required,
+        "not_applicable_controls": not_applicable,
         "approvers": list(tier.get("approvers", [])),
         "eval_requirements": tier.get("eval_requirements"),
         "recertification_months": tier.get("recertification_months"),
         "autonomy_promotion": policy.get("autonomy_promotion"),
+        "sources": sources,
         "notes": notes,
     }
 
@@ -435,20 +569,24 @@ def render_markdown(result: Dict[str, Any]) -> str:
     policy = result["policy"]
     tier = result["tier"]
     lines = [
-        f"**Risk tier: {tier['name']}** | Policy: {policy['id']} v{policy['version']} ({policy['source']})",
+        f"**Risk tier: {result['headline']}** | Policy: {policy['id']} v{policy['version']} ({policy['source']})",
         "",
     ]
-    if result["triggered_rules"]:
-        lines += ["| Rule | Tier | Reason |", "|---|---|---|"]
-        lines += [f"| {r['id']} | {r['tier']} | {r['reason']} |" for r in result["triggered_rules"]]
-    else:
-        lines.append(f"No rule triggered; default tier `{tier['id']}` applies.")
-    lines.append("")
     if result["unanswered_questions"]:
         lines.append("**Unanswered questions:** " + ", ".join(f"`{q}`" for q in result["unanswered_questions"]))
         if result["tier_could_rise_to"]:
             lines.append(f"Depending on those answers the tier could rise to **{result['tier_could_rise_to']}**.")
         lines.append("")
+    if result["triggered_rules"]:
+        lines += ["| Rule | Tier | Reason |", "|---|---|---|"]
+        lines += [f"| {r['id']} | {r['tier']} | {r['reason']} |" for r in result["triggered_rules"]]
+    elif result["unanswered_questions"]:
+        lines.append(
+            f"No rule triggered so far; the default tier `{tier['id']}` applies until every question is answered."
+        )
+    else:
+        lines.append(f"No rule triggered; default tier `{tier['id']}` applies.")
+    lines.append("")
     if not result["prohibited"]:
         cap = result["max_autonomy_at_launch"]
         planned = result["planned_autonomy"] or "not stated"
@@ -464,6 +602,12 @@ def render_markdown(result: Dict[str, Any]) -> str:
         else:
             lines += ["", "| Control | Name | Required by | Evidence |", "|---|---|---|---|"]
             lines += [f"| {c['id']} | {c['name']} | {c['required_by']} | {c['evidence']} |" for c in controls]
+        if result["not_applicable_controls"]:
+            lines += ["", "**Not applicable:**", "", "| Control | Name | Required by | Why not |", "|---|---|---|---|"]
+            lines += [
+                f"| {c['id']} | {c['name']} | {c['required_by']} | not applicable: {c['reason']} |"
+                for c in result["not_applicable_controls"]
+            ]
         lines += ["", "**Approvers:** " + ", ".join(result["approvers"])]
         evals = result["eval_requirements"] or {}
         if evals:
@@ -473,6 +617,13 @@ def render_markdown(result: Dict[str, Any]) -> str:
                 )
             )
         lines.append(f"**Re-certification:** every {result['recertification_months']} months")
+        if result.get("sources"):
+            lines += ["", "**Sources** (official text; facts as of the date each was last verified):", ""]
+            lines += [
+                f"- {s['id']}: {s['title']}. {s['url']} (last verified {s['last_verified']})"
+                + (f". {s['note']}" if s.get("note") else "")
+                for s in result["sources"]
+            ]
     for note in result["notes"]:
         lines += ["", f"> {note}"]
     return "\n".join(lines) + "\n"
@@ -518,6 +669,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     source.add_argument("--validate-policy", action="store_true", help="validate the policy and exit")
     parser.add_argument("--policy", metavar="FILE", help="policy file (default: see module docstring)")
     parser.add_argument("--format", choices=("json", "md"), default="json", help="output format")
+    parser.add_argument(
+        "--strict", action="store_true", help="exit 4 when any question is unanswered (for CI); the result still prints"
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -547,6 +701,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         sys.stdout.write(render_markdown(result))
     else:
         sys.stdout.write(json.dumps(result, indent=2) + "\n")
+    if args.strict and result["status"] == "incomplete":
+        print("error: --strict: unanswered questions: " + ", ".join(result["unanswered_questions"]), file=sys.stderr)
+        return 4
     return 0
 
 

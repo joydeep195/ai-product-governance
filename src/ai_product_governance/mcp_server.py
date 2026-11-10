@@ -61,6 +61,8 @@ _MCP_PREAMBLE = """\
 > `references/<name>.md` -> `get_reference(name)`, `assets/templates/<name>.md` -> `get_template(name)`,
 > the policy file -> `get_policy()`, `scripts/risk_tier.py` -> `get_risk_questionnaire()` then
 > `classify_risk_tier(answers)`, `scripts/unit_economics.py` -> `calculate_unit_economics(inputs)`.
+> `scripts/ai_inventory.py` has no tool, because this server never reads your files: search the code
+> with your own file and search tools, as `get_reference("ai-discovery")` describes.
 > The effective policy for this server is **{policy}**.
 
 """
@@ -274,6 +276,7 @@ def _register_prompt(server: MCPServer[Any], skill: Skill, policy: EffectivePoli
         "status": lambda status: render(status),
         "symptom": lambda symptom: render(symptom),
         "context": lambda context: render(context),
+        "scope": lambda scope: render(scope),
     }
     function = adapters[flow.argument]
     server.prompt(name=flow.id, title=flow.title, description=flow.description)(function)

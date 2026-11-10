@@ -1,7 +1,7 @@
 {
   "name": "ai-product-governance",
   "displayName": "AI Product Governance",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Enterprise AI product governance: AI fit checks, unit economics, eval plans, policy-based risk tiers and controls, launch readiness and regression diagnosis.",
   "author": {
     "name": "joydeep195",

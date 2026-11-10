@@ -1,0 +1,16 @@
+{
+  "id": "g3-minimal-internal-tool",
+  "title": "Minimal-risk internal tool (over-governance check)",
+  "gate": "G3",
+  "tags": ["risk", "proportionality", "over-governance"],
+  "prompt": "Our platform team built a small internal tool: an engineer pastes a stack trace and it suggests likely causes and where to look. It runs on an open-weight model we host in our own cloud account, so nothing leaves our environment. Only our 40 engineers use it, it touches no customer data (the paste box strips anything that looks like an email address or a token), it takes no actions, and each suggestion is just something the engineer reads. Security has asked what governance we need before we roll it out to everyone in engineering. What's the minimum we must do?",
+  "criteria": [
+    { "id": "C1", "text": "Classifies it at the lowest risk tier (minimal), with reasons such as internal users only, assistive output that an engineer reads, no customer or personal data, no actions, and a self-hosted model.", "critical": true },
+    { "id": "C2", "text": "Keeps the controls proportionate: a short list such as registering the tool with an owner, a basic evaluation of suggestion quality, monitoring and a way to switch it off. Does not require high-risk process such as a DPIA, fairness testing, a red-team programme or approval by a risk committee.", "critical": true },
+    { "id": "C3", "text": "Lets the rollout go ahead soon with light conditions, rather than demanding a full PRD, a launch board or a lengthy assessment first." },
+    { "id": "C4", "text": "Names the residual risks that do matter, such as engineers trusting a confidently wrong suggestion and secrets or personal data slipping past the filter in pasted stack traces, with a lightweight mitigation for each." },
+    { "id": "C5", "text": "States what would change the tier, such as customer data in the input, sending data to an external model provider, opening it to customers, or letting the tool take actions." }
+  ],
+  "expected_reads": ["references/gate-3-risk-and-controls.md"],
+  "expected_scripts": ["risk_tier.py"]
+}

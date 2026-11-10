@@ -18,7 +18,9 @@ def test_validate_and_build_check(capsys: pytest.CaptureFixture[str]) -> None:
 
 def test_tier_and_economics_commands(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["tier", "--answers-json", json.dumps({"sensitive_data": True})]) == 0
-    assert "**Risk tier: High**" in capsys.readouterr().out
+    assert "**Risk tier: Incomplete (provisional High; could rise to Prohibited)**" in capsys.readouterr().out
+    assert main(["tier", "--strict", "--answers-json", json.dumps({"sensitive_data": True})]) == 4
+    assert "--strict: unanswered questions" in capsys.readouterr().err
     assert main(["economics", "--example", "--format", "json"]) == 0
     assert "price_input_per_mtok" in capsys.readouterr().out
 
@@ -61,7 +63,7 @@ def test_eval_dry_run_detects_the_one_tool_you_have(
     assert main(["eval", "--dry-run", "--trials", "1", "--config", str(path)]) == 0
     out = capsys.readouterr().out
     assert " -> claude-code" in out and "ready" in out
-    assert "Plan: 1 model(s) x 10 scenario(s) x 2 arm(s) x 1 trial(s)" in out
+    assert "Plan: 1 model(s) x 14 scenario(s) x 2 arm(s) x 1 trial(s)" in out
     assert "graded by claude-code/claude-opus-5-5, effort high (the same tool)" in out
     assert "usage counts against that plan" in out
 

@@ -22,7 +22,7 @@ flowchart LR
         refs["references/<br/>gate playbooks"]
         tmpl["assets/templates/<br/>artifact templates"]
         policy["assets/policy/<br/>policy + JSON Schema"]
-        engines["scripts/<br/>risk_tier.py, unit_economics.py"]
+        engines["scripts/<br/>risk_tier.py, unit_economics.py,<br/>ai_inventory.py"]
     end
 
     subgraph toolkit["Python package: ai_product_governance"]
@@ -108,8 +108,8 @@ The stdio transport is unchanged: it serves only the process that launched it, s
 ```text
 skills/ai-product-governance/   canonical skill (the product)
   SKILL.md                      rules, lifecycle router, output standards
-  references/                   gate playbooks, approach and model selection, glossary
-  assets/templates/             eight artifact templates
+  references/                   gate playbooks, AI discovery, approach and model selection, glossary
+  assets/templates/             nine artifact templates
   assets/policy/                default policy and JSON Schema
   scripts/                      deterministic engines (Python 3.9+, stdlib only)
 src/ai_product_governance/      toolkit: CLI, MCP server, adapters, validator, evals

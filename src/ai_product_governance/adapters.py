@@ -106,6 +106,8 @@ def prompt_pack_instructions(skill: Skill) -> str:
         "Approach and model choice: `approach-and-model-selection.md` (model decision record). "
         "Definitions: `glossary.md`.",
         "",
+        '- "Where do we use AI?" or a product review: follow `ai-discovery.md` and fill in the AI inventory. If '
+        'you cannot see the code, ask the user for it; with no AI, record "No AI found" and assess no tier.',
         '- Vague "add AI" requests: run Gate 0 before writing any spec.',
         '- "Write an AI PRD": use the AI PRD template and read the Gate 0, 2 and 3 files.',
         '- "Can we launch?": check each gate\'s exit criteria and decide Go, Go with conditions (an owner and a '
@@ -214,8 +216,8 @@ def _copilot(skill: Skill) -> dict[str, str]:
                 "",
                 f"1. Read only these playbooks from the skill: {reads}.",
                 f"2. Use the template `assets/templates/{flow.template}.md` and keep every section.",
-                "3. Run the skill's `scripts/risk_tier.py` and `scripts/unit_economics.py` for risk tiers and costs; "
-                "never estimate them by hand.",
+                "3. Run the skill's `scripts/risk_tier.py` and `scripts/unit_economics.py` for risk tiers and costs "
+                "(and `scripts/ai_inventory.py` to scan for AI); never estimate tiers or costs by hand.",
                 "4. If `.ai-governance/policy.json` exists in this repository, it overrides the default policy.",
                 f"5. Save the result as `docs/ai-governance/<feature>-{flow.template}.md` unless asked otherwise.",
                 "",
@@ -292,6 +294,8 @@ LLM feature:
 4. Compute risk tiers and costs with `python .agents/skills/{SKILL_NAME}/scripts/risk_tier.py` and
    `scripts/unit_economics.py`; never estimate them by hand.
 5. If `.ai-governance/policy.json` exists, it overrides the bundled default policy.
+6. To review the repository for AI governance, find its AI uses first (`references/ai-discovery.md`,
+   `scripts/ai_inventory.py`); if there are none, record "No AI found" with what was searched.
 """
     readme = f"""{GENERATED_NOTE}
 

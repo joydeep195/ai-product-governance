@@ -69,7 +69,7 @@ Plugin skills are namespaced, so the slash command is `/ai-product-governance:ai
 ## Tool-specific extras
 
 - **GitHub Copilot:** the skill appears as `/ai-product-governance` in VS Code chat. For one slash command per
-  workflow (`/ai-intake`, `/ai-prd`, `/ai-eval-plan`, `/ai-risk-review`, `/ai-launch-review`,
+  workflow (`/ai-inventory`, `/ai-intake`, `/ai-prd`, `/ai-eval-plan`, `/ai-risk-review`, `/ai-launch-review`,
   `/ai-regression-review`, `/ai-model-decision`, `/ai-business-case`), also copy
   [`integrations/github-copilot/.github/prompts/`](../integrations/github-copilot/) into your repository's
   `.github/prompts/`.

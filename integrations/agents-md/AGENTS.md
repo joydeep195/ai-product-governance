@@ -11,3 +11,5 @@ LLM feature:
 4. Compute risk tiers and costs with `python .agents/skills/ai-product-governance/scripts/risk_tier.py` and
    `scripts/unit_economics.py`; never estimate them by hand.
 5. If `.ai-governance/policy.json` exists, it overrides the bundled default policy.
+6. To review the repository for AI governance, find its AI uses first (`references/ai-discovery.md`,
+   `scripts/ai_inventory.py`); if there are none, record "No AI found" with what was searched.

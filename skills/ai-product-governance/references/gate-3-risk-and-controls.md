@@ -5,15 +5,17 @@
 
 ## 1. Classify the risk tier
 
-Answer the policy questionnaire (`python scripts/risk_tier.py --questions`), then run the calculator on the answers. The tier is the highest tier triggered by any rule. A prohibited trigger stops the work. Unanswered questions are reported, because answering them can only raise the tier.
+Answer the policy questionnaire (`python scripts/risk_tier.py --questions`), then run the calculator on the answers. The tier is the highest tier triggered by any rule. A prohibited trigger stops the work.
+
+If any question is unanswered, the calculator reports `"status": "incomplete"` and a headline such as `Incomplete (provisional Minimal; could rise to Prohibited)`, because answering can only keep or raise the tier and add controls. Never present a provisional tier as the tier. Ask the user the unanswered questions; if they want a draft now, record each unanswered question in the Assumptions Ledger with the answer you assumed, show the tier those assumptions produce and the tier it could rise to, and re-run the calculator when the answers arrive. Add `--strict` in CI to fail (exit code 4) on an incomplete questionnaire.
 
 The default tiers, summarised (the policy file is authoritative):
 
 | Tier | Typical profile | Example |
 |---|---|---|
 | Minimal | Internal and assistive; no personal data beyond business contact details | Summariser for internal engineering documents |
-| Limited | Customer-facing or externally published output, personal data, data sent to an external model provider, or actions that are hard to reverse | Support-reply drafts that agents send to customers |
-| High | Influences decisions about people's access to jobs, credit, insurance, housing, education, healthcare or essential services; sensitive data; regulated advice; children or vulnerable users; high-value or autonomous actions affecting customers | CV screening; claims triage; an agent that issues refunds without approval |
+| Limited | Customer-facing or externally published output, personal data, data sent to an external model provider, actions that are hard to reverse, or work inside a regulated process (for example KYC checks, complaints handling or regulatory reporting) | Support-reply drafts that agents send to customers; drafting a section of a regulatory report for analysts to review |
+| High | Influences decisions about people's access to jobs, credit, insurance, housing, education, healthcare or essential services; sensitive data; regulated advice (medical, legal, financial or tax); children or vulnerable users; high-value or autonomous actions affecting customers | CV screening; claims triage; an agent that issues refunds without approval |
 | Prohibited | Practices the organisation forbids outright, such as manipulative techniques, exploiting vulnerabilities, social scoring or emotion recognition of employees | — |
 
 The default tiers are informed by the risk categories of the EU AI Act and the NIST AI Risk Management Framework, but they are **not** a legal classification. Legal and compliance teams decide regulatory status.
@@ -50,7 +52,7 @@ Moving up a level requires evidence. The default policy requires, for one-level 
 
 ## 4. Map the required controls
 
-The policy lists the required controls for the tier, plus conditional controls (for example least-privilege tooling when the system takes actions, or permission-aware retrieval when it uses RAG). For each control, state how it is implemented, what the evidence is, and who owns it (a role). Also cite the framework references in the control's `mappings`, which the calculator returns on each required control (the "Maps to" column of its Markdown output), so a reviewer can trace the control to the requirement it addresses. Say that the mappings are informative, not legal advice: they do not show that a requirement applies or is met, and legal and compliance teams confirm applicability.
+The policy lists the required controls for the tier, plus conditional controls (for example least-privilege tooling when the system takes actions, or permission-aware retrieval when it uses RAG). A control can also be ruled out: the calculator lists controls whose `applies_when` condition the answers make false under "Not applicable", with the policy's reason (for example fairness evaluation when no person is the subject of the output, nobody outside the organisation uses it and it influences no decisions about people). Copy them into the control plan as `not applicable: <reason>`; never drop a control silently, and never rule one out yourself when the calculator still lists it as required. For each control, state how it is implemented, what the evidence is, and who owns it (a role). Also cite the framework references in the control's `mappings`, which the calculator returns on each required control (the "Maps to" column of its Markdown output), so a reviewer can trace the control to the requirement it addresses. Say that the mappings are informative, not legal advice: they do not show that a requirement applies or is met, and legal and compliance teams confirm applicability.
 
 The default control catalogue:
 
@@ -96,17 +98,20 @@ The default control catalogue:
 
 ## 6. Regulatory flags (not legal advice)
 
-Route to legal and compliance review whenever one of these applies:
+Route to legal and compliance review whenever one of these applies. Each flag names its official source and the date a maintainer last confirmed that source was current. You cannot look anything up, so state these facts "as of" that date and say the law may have changed since. Never add a regulatory fact from memory as if it were current: if a question goes beyond these flags and the sources in the policy's `frameworks`, say you could not verify it and route it.
 
-- **EU users or the EU market:** obligations under the EU AI Act depend on the risk category, ranging from transparency duties (for example for chatbots and AI-generated content) to extensive requirements for high-risk uses such as employment, credit scoring, education and access to essential services.
-- **Automated decisions with legal or similarly significant effects on people:** GDPR Article 22 and comparable laws apply, and high-risk processing typically needs a data protection impact assessment.
-- **Sector rules:** for example model risk management in banking, health data rules (such as HIPAA in the US), and consumer-protection and advertising law for generated content. In the US, SR 26-2 (OCC Bulletin 2026-13) replaced SR 11-7 in April 2026; it places generative and agentic AI models outside its scope, but says a bank's own risk management and governance practices should still set the controls for them.
-- **Management frameworks** that structure an AI programme: NIST AI RMF and ISO/IEC 42001.
+- **EU users or the EU market:** the EU AI Act sets obligations by risk category, from transparency duties (for example for chatbots and AI-generated content) to extensive requirements for high-risk uses such as employment, credit scoring, education and access to essential services. The Digital Omnibus on AI, Regulation (EU) 2026/1744 (published 24 July 2026), amended it, including when high-risk obligations apply, so check the consolidated text for current dates. Sources: [Regulation (EU) 2024/1689](https://eur-lex.europa.eu/eli/reg/2024/1689/oj), [Regulation (EU) 2026/1744](https://eur-lex.europa.eu/eli/reg/2026/1744/oj) · last verified 2026-11-10.
+- **Automated decisions with legal or similarly significant effects on people:** GDPR Article 22 and comparable laws apply, and high-risk processing typically needs a data protection impact assessment (GDPR Article 35). Source: [Regulation (EU) 2016/679](https://eur-lex.europa.eu/eli/reg/2016/679/oj) · last verified 2026-11-10.
+- **Model risk management in US banking:** SR 26-2 and OCC Bulletin 2026-13 (17 April 2026) replaced SR 11-7 and OCC Bulletin 2011-12. Footnote 3 of the guidance places generative and agentic AI models outside its scope, but says a bank's own risk management and governance practices should guide the controls for them. Sources: [SR 26-2](https://www.federalreserve.gov/supervisionreg/srletters/SR2602.htm), [OCC Bulletin 2026-13](https://www.occ.gov/news-issuances/bulletins/2026/bulletin-2026-13.html) · last verified 2026-11-10.
+- **Health data in the US:** HIPAA. Source: [HHS, Health Information Privacy](https://www.hhs.gov/hipaa/index.html) · last verified 2026-11-10.
+- **Other sector rules**, such as consumer-protection and advertising law for generated content: these vary by jurisdiction and sector, and no source is bundled. Name the area and route it; do not describe its requirements.
+- **Management frameworks** that structure an AI programme: NIST AI RMF 1.0 (NIST states it is being revised) and ISO/IEC 42001:2023. Sources: [NIST AI RMF](https://www.nist.gov/itl/ai-risk-management-framework), [ISO/IEC 42001](https://www.iso.org/standard/42001) · last verified 2026-11-10.
+- **Other jurisdictions** (for example India, Singapore, Brazil, or the UK under the default policy): the policy maps none of their laws. Name the law or regulator the user mentions or that plainly applies, say the policy does not cover it and that you have not verified its current requirements, and route it to legal and compliance.
 
 ## Exit criteria
 
 - [ ] Tier computed from the policy, with the policy ID and version, the triggering rules, and any unanswered questions.
 - [ ] Risk register covering every category, with `N/A — <reason>` where a category does not apply.
 - [ ] Autonomy level chosen within the tier cap, with promotion criteria.
-- [ ] Control plan: every required and conditional control with its implementation, evidence, owner and the framework references from its `mappings`, marked as informative, not legal advice.
-- [ ] Required approvers identified and regulatory flags routed.
+- [ ] Control plan: every required and conditional control with its implementation, evidence, owner and the framework references from its `mappings`, marked as informative, not legal advice; every not-applicable control listed with its reason.
+- [ ] Required approvers identified and regulatory flags routed, each stated as of its source's last-verified date.

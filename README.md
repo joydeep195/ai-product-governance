@@ -68,6 +68,7 @@ sign-in or an API key.
 | Governance method: rules, six gates, playbooks, templates | The skill, loaded natively | The skill where supported, otherwise the prompt pack |
 | Policy as code: your organisation's tiers, controls and approvers | `.ai-governance/policy.json` in the repo | Upload your policy file with the prompt pack |
 | Deterministic calculators: risk tier, unit economics | The bundled Python scripts | Code execution where the tool has it, the MCP server, or the documented formulas |
+| AI discovery: which AI does the product already use? | The bundled scan plus the agent's own file search, then the AI inventory template | The playbook's checklist, applied to the code or answers you share |
 | Evals: does the skill improve answers? | `/ai-eval`: your agent runs the suite in its own session with fresh sub-agents; or `aipg eval`, which detects your tool | `aipg eval-kit`: copy-and-paste steps, scored offline |
 
 ## Quick start
@@ -101,6 +102,7 @@ Then ask your assistant what you would ask a senior AI product lead:
 > *"Our CEO wants us to add AI to the support platform this quarter. Write the PRD."*
 > *"Product wants an agent that issues refunds up to $500 with no human in the loop. Can you approve it?"*
 > *"Acceptance of our AI replies dropped from 62% to 48%. Should we switch providers?"*
+> *"Review this repository for AI governance."*
 
 ## Policy as code
 
@@ -111,7 +113,7 @@ organisation's rules. See the [policy guide](docs/policy.md) and an
 
 ```console
 $ python skills/ai-product-governance/scripts/risk_tier.py --answers examples/inputs/refund-agent.answers.json --format md
-**Risk tier: High** | Policy: aipg-default v1.1.0 (bundled default policy)
+**Risk tier: High** | Policy: aipg-default v2.0.0 (bundled default policy)
 
 | Rule | Tier | Reason |
 |---|---|---|
@@ -119,6 +121,7 @@ $ python skills/ai-product-governance/scripts/risk_tier.py --answers examples/in
 | L-01 | limited | People outside the organisation see the output or interact with the AI. |
 ...
 **Autonomy:** planned L4; maximum at launch L3.
+...
 > Planned autonomy L4 exceeds the launch cap L3 for the High tier. Launch at L3 or lower and promote with evidence.
 ```
 
@@ -162,7 +165,7 @@ Full details: [docs/architecture.md](docs/architecture.md).
 
 | Check | What it guarantees |
 |---|---|
-| 127 unit and integration tests on Linux, Windows and macOS, Python 3.11-3.14 | Engines, MCP server, adapters and eval harness behave as specified |
+| Unit and integration tests (`pytest`) on Linux, Windows and macOS, Python 3.11-3.14 | Engines, MCP server, adapters and eval harness behave as specified |
 | Bundled scripts tested on Python 3.9 | They run in code-interpreter sandboxes |
 | `ruff`, `ruff format`, `mypy --strict` | Clean, consistently typed code |
 | `aipg validate --strict` | Agent Skills spec compliance, policy schema, links, version consistency, size budgets |
@@ -172,8 +175,9 @@ Full details: [docs/architecture.md](docs/architecture.md).
 
 ### Tool-independent evals
 
-Ten scenarios cover every gate and the classic failure modes: fabricated numbers, AI where rules suffice, launch
-pressure, autonomous money movement, premature model switching and legal overreach. Each runs **with** the skill
+Fourteen scenarios cover every gate and the classic failure modes: fabricated numbers, AI where rules suffice, launch
+pressure, autonomous money movement, premature model switching, legal overreach (including laws the policy does not
+cover), over-governing low-risk tools, and products with no AI at all. Each runs **with** the skill
 and **without** it, graded blind against a rubric plus deterministic checks, with critical criteria that fail a
 trial outright. See the [evaluation methodology](docs/evaluation.md).
 
@@ -194,7 +198,9 @@ the skill"). Your agent runs the suite in its own session, with a fresh sub-agen
 
 The first published baseline is an agent-run `/ai-eval` on **Claude Code (Claude Opus 5.5)**, scored on
 20 October 2026 (run `20261018T191202Z`, skill v1.0.0). It covers all 10 scenarios × 2 arms × 1 trial, with every
-answer and every blind grading done by a fresh sub-agent of that tool.
+answer and every blind grading done by a fresh sub-agent of that tool. The four scenarios added in v1.1.0 are not in
+it yet: the regression gate compares only the scenarios both runs share, and reports the new ones as not compared.
+Run `/ai-eval --trials 3` to refresh it.
 
 | Scenario | With skill | Baseline |
 |---|---|---|
@@ -237,7 +243,8 @@ pip install -e ".[dev]"
 python -m pytest && aipg validate --strict && aipg build --check
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Security reports: [SECURITY.md](SECURITY.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md). Security reports: [SECURITY.md](SECURITY.md). Planned work:
+[docs/roadmap.md](docs/roadmap.md).
 
 ## Scope and disclaimer
 

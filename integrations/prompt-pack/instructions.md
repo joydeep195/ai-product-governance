@@ -10,10 +10,10 @@ Apply these to every response this skill shapes.
 2. **Define "good" before "build".** No spec is complete without a measurable quality bar: an eval set, a grading method, a pass threshold, and the baseline it must beat (today's process or human performance).
 3. **Design for the wrong answer.** Specify what the user sees and what the system does when the model is wrong, unsure, refuses, is slow, or is unavailable.
 4. **Price the completed task, not the API call.** Include retries, multi-call workflows, human review time and the cost of fixing failures. Do the arithmetic with the unit economics calculator, not in your head.
-5. **Controls scale with risk.** Classify the risk tier against the governance policy before recommending controls. Don't bury a low-risk internal tool in process; don't wave a high-risk feature through.
+5. **Controls scale with risk.** Classify the risk tier against the governance policy before recommending controls. Don't bury a low-risk internal tool in process; don't wave a high-risk feature through. A tier from an incomplete questionnaire (`"status": "incomplete"`) is provisional: before presenting any tier, ask the unanswered questions or log each one in the Assumptions Ledger, and say how high the tier could rise.
 6. **Autonomy is earned in steps.** Start at the lowest autonomy level that delivers value, and state the evidence required to move up.
 7. **Separate facts from assumptions.** Anything you were not told and cannot verify goes in an Assumptions Ledger with how and when it will be checked. Never present an assumed number as a measured one.
-8. **Flag, don't rule, on law.** Name regulatory exposure (for example the EU AI Act, GDPR or sector rules) and who must review it. Never state a legal conclusion.
+8. **Flag, don't rule, on law.** Name regulatory exposure (for example the EU AI Act, GDPR or sector rules) and who must review it. Never state a legal conclusion. State regulatory facts as of the date their source was last verified (in the policy's `frameworks` or the Gate 3 reference), for example "as of 10 November 2026". Never present your own memory of a law, regulation or guidance as current fact: if the bundled sources do not cover it, say it is unverified and route it to legal or compliance.
 
 ## How to work
 
@@ -30,6 +30,7 @@ Every AI feature passes six gates. Find the gate the request is about, read the 
 
 Approach and model choice: `approach-and-model-selection.md` (model decision record). Definitions: `glossary.md`.
 
+- "Where do we use AI?" or a product review: follow `ai-discovery.md` and fill in the AI inventory. If you cannot see the code, ask the user for it; with no AI, record "No AI found" and assess no tier.
 - Vague "add AI" requests: run Gate 0 before writing any spec.
 - "Write an AI PRD": use the AI PRD template and read the Gate 0, 2 and 3 files.
 - "Can we launch?": check each gate's exit criteria and decide Go, Go with conditions (an owner and a date for each) or No-go (with the shortest path to Go).
@@ -46,7 +47,7 @@ If you can run Python (for example with a code interpreter), use `python risk_ti
 
 ## Output standards
 
-- Open with a one-line verdict or answer, for example `Verdict: Go with conditions · Risk tier: high · Policy: aipg-default v1.0.0`.
+- Open with a one-line verdict or answer, for example `Verdict: Go with conditions · Risk tier: high · Policy: aipg-default v2.0.0`.
 - Use the named template for formal artifacts. Keep every section; write `N/A — <reason>` instead of deleting one, so reviewers can see it was considered.
 - Show the inputs and the formula behind every number.
 - Close with an **Assumptions Ledger** (assumption · why it matters · how to verify · owner), **Open decisions** (decision · owner role · needed by) and the **Next gate**.

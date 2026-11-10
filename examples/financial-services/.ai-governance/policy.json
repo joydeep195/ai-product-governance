@@ -1,7 +1,7 @@
 {
   "$schema": "../../../skills/ai-product-governance/assets/policy/policy.schema.json",
   "policy_id": "fs-bank-ai-policy",
-  "version": "2.5.0",
+  "version": "3.0.0",
   "name": "Example: AI policy for a regulated retail bank",
   "owner": "Model risk management committee",
   "description": "Illustrative organisation policy showing how a regulated firm tightens the default: customer-facing AI is high risk, the financial threshold drops to 250, model-risk validation, adverse action reasons, third-party exit planning, complaint monitoring and communications record-keeping are added, and the high tier requires a larger golden set and compliance sign-off. Place it at .ai-governance/policy.json in a workspace. Each control maps to the requirements it addresses, adding SR 26-2 (which replaced SR 11-7), DORA, ECOA and Regulation B, SEC and FINRA record-keeping and the FCA Consumer Duty to the default crosswalk; the mappings are informative, not legal advice.",
@@ -201,6 +201,11 @@
       "text": "Does it process sensitive data: health, biometric, genetic, financial account, government ID, criminal record, or data about children?"
     },
     {
+      "id": "outputs_concern_people",
+      "type": "boolean",
+      "text": "Is an identifiable person the subject of the output: does it describe, assess, rank, advise or decide about specific people such as customers, employees, applicants or patients?"
+    },
+    {
       "id": "consequential_decisions",
       "type": "boolean",
       "text": "Does the output influence decisions about people's access to employment, credit, insurance, housing, education, healthcare, legal or other essential services?"
@@ -208,7 +213,13 @@
     {
       "id": "regulated_advice",
       "type": "boolean",
-      "text": "Does it give or support regulated advice (medical, legal, financial, tax) or run inside a regulated process?"
+      "text": "Does it give or support regulated advice to people, such as medical, legal, financial or tax advice?"
+    },
+    {
+      "id": "inside_regulated_process",
+      "type": "boolean",
+      "split_from": "regulated_advice",
+      "text": "Does it run inside a regulated process, such as know-your-customer checks, anti-money-laundering or fraud monitoring, complaints or dispute handling, claims handling or regulatory reporting?"
     },
     {
       "id": "vulnerable_users",
@@ -315,7 +326,7 @@
         "question": "regulated_advice",
         "equals": true
       },
-      "reason": "Gives or supports regulated advice, or runs inside a regulated process."
+      "reason": "Gives or supports regulated advice (medical, legal, financial or tax)."
     },
     {
       "id": "H-04",
@@ -419,6 +430,15 @@
         ]
       },
       "reason": "Acts without approval of each individual action."
+    },
+    {
+      "id": "L-07",
+      "tier": "limited",
+      "when": {
+        "question": "inside_regulated_process",
+        "equals": true
+      },
+      "reason": "Runs inside a regulated process, which brings record-keeping, audit and supervisory duties. Other rules decide whether it is high risk, such as decisions about people, sensitive data or financial impact."
     }
   ],
   "conditional_controls": [
@@ -465,38 +485,6 @@
         "equals": true
       },
       "reason": "Retrieval must respect document permissions."
-    },
-    {
-      "control": "PRV-01",
-      "when": {
-        "question": "personal_data",
-        "equals": true
-      },
-      "reason": "Personal data is processed."
-    },
-    {
-      "control": "PRV-03",
-      "when": {
-        "question": "third_party_model_provider",
-        "equals": true
-      },
-      "reason": "Data is shared with an external model provider."
-    },
-    {
-      "control": "TRN-01",
-      "when": {
-        "any": [
-          {
-            "question": "customer_facing",
-            "equals": true
-          },
-          {
-            "question": "external_publication",
-            "equals": true
-          }
-        ]
-      },
-      "reason": "People outside the organisation encounter AI output."
     },
     {
       "control": "TRN-03",
@@ -553,6 +541,113 @@
         ]
       },
       "reason": "AI output becomes a communication with customers or the public."
+    }
+  ],
+  "frameworks": [
+    {
+      "id": "EU AI Act",
+      "title": "Regulation (EU) 2024/1689 (Artificial Intelligence Act)",
+      "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj",
+      "last_verified": "2026-11-10",
+      "note": "In force. Amended by Regulation (EU) 2026/1744 (Digital Omnibus on AI), published 24 July 2026, including when high-risk obligations apply: check the consolidated text for current dates of application."
+    },
+    {
+      "id": "NIST AI RMF 1.0",
+      "title": "NIST AI 100-1, Artificial Intelligence Risk Management Framework (AI RMF 1.0)",
+      "url": "https://www.nist.gov/itl/ai-risk-management-framework",
+      "last_verified": "2026-11-10",
+      "note": "Released 26 January 2023 and still the current version; NIST states it is being revised, so check for a newer version."
+    },
+    {
+      "id": "ISO/IEC 42001:2023",
+      "title": "ISO/IEC 42001:2023, Information technology - Artificial intelligence - Management system",
+      "url": "https://www.iso.org/standard/42001",
+      "last_verified": "2026-11-10",
+      "note": "Edition 1 (2023) is the published edition."
+    },
+    {
+      "id": "GDPR",
+      "title": "Regulation (EU) 2016/679 (General Data Protection Regulation)",
+      "url": "https://eur-lex.europa.eu/eli/reg/2016/679/oj",
+      "last_verified": "2026-11-10",
+      "note": "In force."
+    },
+    {
+      "id": "OWASP Top 10 for LLM Applications",
+      "title": "OWASP Top 10 for LLM Applications 2025",
+      "url": "https://genai.owasp.org/llm-top-10/",
+      "last_verified": "2026-11-10",
+      "note": "The 2025 edition is the latest the OWASP GenAI Security Project publishes."
+    },
+    {
+      "id": "SR 26-2",
+      "title": "SR 26-2 / OCC Bulletin 2026-13, Revised Guidance on Model Risk Management (17 April 2026)",
+      "url": "https://www.federalreserve.gov/supervisionreg/srletters/SR2602.htm",
+      "last_verified": "2026-11-10",
+      "note": "Supersedes SR 11-7; OCC Bulletin 2026-13 rescinds OCC 2011-12. Footnote 3 of the guidance puts generative and agentic AI models outside its scope and says a bank's own risk management and governance practices should guide the controls for them."
+    },
+    {
+      "id": "DORA",
+      "title": "Regulation (EU) 2022/2554 (Digital Operational Resilience Act)",
+      "url": "https://eur-lex.europa.eu/eli/reg/2022/2554/oj",
+      "last_verified": "2026-11-10",
+      "note": "In force."
+    },
+    {
+      "id": "ECOA / Regulation B",
+      "title": "Equal Credit Opportunity Act and Regulation B (12 CFR Part 1002)",
+      "url": "https://www.consumerfinance.gov/rules-policy/regulations/1002/",
+      "last_verified": "2026-11-10",
+      "note": "The CFPB's interactive regulation marks this the current version."
+    },
+    {
+      "id": "FCRA",
+      "title": "Fair Credit Reporting Act (15 U.S.C. 1681 et seq.)",
+      "url": "https://www.ftc.gov/legal-library/browse/statutes/fair-credit-reporting-act",
+      "last_verified": "2026-11-10",
+      "note": "The FTC page links the text as revised in March 2026."
+    },
+    {
+      "id": "SEC",
+      "title": "SEC Rule 17a-4 (17 CFR 240.17a-4), records to be preserved by brokers and dealers",
+      "url": "https://www.ecfr.gov/current/title-17/section-240.17a-4",
+      "last_verified": "2026-11-10",
+      "note": "Current in the eCFR."
+    },
+    {
+      "id": "FINRA",
+      "title": "FINRA Rules 3110 and 4511, and Regulatory Notice 24-09 on generative AI (27 June 2024)",
+      "url": "https://www.finra.org/rules-guidance/rulebooks/finra-rules",
+      "last_verified": "2026-11-10",
+      "note": "Regulatory Notice 24-09 reminds members that existing rules, including Rule 3110, apply to generative AI; it creates no new requirements."
+    },
+    {
+      "id": "MiFID II",
+      "title": "Directive 2014/65/EU (Markets in Financial Instruments Directive II)",
+      "url": "https://eur-lex.europa.eu/eli/dir/2014/65/oj",
+      "last_verified": "2026-11-10",
+      "note": "In force, as amended."
+    },
+    {
+      "id": "FCA Consumer Duty",
+      "title": "FCA Handbook PRIN 2A, The Consumer Duty",
+      "url": "https://handbook.fca.org.uk/handbook/prin2a",
+      "last_verified": "2026-11-10",
+      "note": "Last updated by the FCA on 26 June 2026."
+    },
+    {
+      "id": "FCA Handbook",
+      "title": "FCA Handbook DISP 1, Treating complainants fairly",
+      "url": "https://handbook.fca.org.uk/handbook/disp1",
+      "last_verified": "2026-11-10",
+      "note": "Current in the FCA Handbook."
+    },
+    {
+      "id": "Interagency third-party guidance (2023)",
+      "title": "Interagency Guidance on Third-Party Relationships: Risk Management (Fed, FDIC, OCC; 6 June 2023)",
+      "url": "https://www.occ.gov/news-issuances/bulletins/2023/bulletin-2023-17.html",
+      "last_verified": "2026-11-10",
+      "note": "OCC Bulletin 2023-17; not marked as rescinded."
     }
   ],
   "controls": [
@@ -716,6 +811,27 @@
       "name": "Fairness evaluation",
       "description": "Pass rates compared across relevant user segments, languages and dialects.",
       "evidence": "Segment-level eval results and accepted gaps",
+      "applies_when": {
+        "any": [
+          {
+            "question": "outputs_concern_people",
+            "equals": true
+          },
+          {
+            "question": "customer_facing",
+            "equals": true
+          },
+          {
+            "question": "consequential_decisions",
+            "equals": true
+          },
+          {
+            "question": "vulnerable_users",
+            "equals": true
+          }
+        ]
+      },
+      "not_applicable_reason": "No person is the subject of the output, nobody outside the organisation uses it, and it influences no decisions about people or vulnerable groups, so there are no user or subject segments whose results could differ.",
       "mappings": [
         {
           "framework": "EU AI Act",
@@ -889,6 +1005,19 @@
       "name": "Explanation and contestability",
       "description": "Affected people can get an explanation and ask for a human review of the outcome.",
       "evidence": "Appeal process and response times",
+      "applies_when": {
+        "any": [
+          {
+            "question": "outputs_concern_people",
+            "equals": true
+          },
+          {
+            "question": "consequential_decisions",
+            "equals": true
+          }
+        ]
+      },
+      "not_applicable_reason": "No person is the subject of the output and it influences no decisions about people, so nobody is affected by an outcome they could ask to have explained or reviewed.",
       "mappings": [
         {
           "framework": "EU AI Act",

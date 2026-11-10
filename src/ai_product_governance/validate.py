@@ -11,7 +11,7 @@ import re
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from ai_product_governance import __version__
 from ai_product_governance.adapters import PROMPT_PACK_CHAR_LIMIT, prompt_pack_instructions
@@ -159,6 +159,16 @@ def check_policy_file(path: Path, label: str) -> list[Finding]:
     findings = [Finding("error", label, problem) for problem in policy_problems(document)]
     if findings:
         return findings
+    mapped = any(control.get("mappings") for control in document["controls"])
+    if mapped and "frameworks" not in document:
+        findings.append(
+            Finding(
+                "warning",
+                label,
+                "controls map to frameworks but the policy has no 'frameworks' list: add each framework's official "
+                "source and last_verified date so regulatory facts can be stated as of a date",
+            )
+        )
     tiers = sorted((t for t in document["tiers"] if not t.get("prohibited")), key=lambda t: t["rank"])
     for lower, higher in itertools.pairwise(tiers):
         missing = set(lower["required_controls"]) - set(higher["required_controls"])
@@ -171,7 +181,94 @@ def check_policy_file(path: Path, label: str) -> list[Finding]:
                     + ", ".join(sorted(missing)),
                 )
             )
+    findings += [Finding("warning", label, message) for message in shadowed_conditionals(document)]
     return findings
+
+
+def shadowed_conditionals(policy: dict[str, Any]) -> list[str]:
+    """Conditional controls that can never add anything, because the tiers already require them.
+
+    A conditional is shadowed when its condition implies a rule whose tier, and every higher non-prohibited tier,
+    already requires the control. The check is conservative: it reports only implications it can prove from the
+    conditions' structure, so a conditional it does not report may still be shadowed.
+    """
+    tiers = [t for t in policy["tiers"] if not t.get("prohibited")]
+    rank = {t["id"]: t["rank"] for t in tiers}  # rules that set a prohibited tier never shadow anything
+
+    def covered(control: str, tier_id: str) -> bool:
+        return all(control in t["required_controls"] for t in tiers if t["rank"] >= rank[tier_id])
+
+    def shadowing_rules(control: str, when: dict[str, Any]) -> list[str] | None:
+        if "any" in when:
+            found: list[str] = []
+            for branch in when["any"]:
+                rules = shadowing_rules(control, branch)
+                if rules is None:
+                    return None
+                found += [r for r in rules if r not in found]
+            return found
+        for rule in policy["rules"]:
+            if rank.get(rule["tier"]) is not None and covered(control, rule["tier"]) and _implies(when, rule["when"]):
+                return [f"{rule['id']} ({rule['tier']})"]
+        return None
+
+    messages = []
+    for item in policy.get("conditional_controls", []):
+        rules = shadowing_rules(item["control"], item["when"])
+        if rules:
+            messages.append(
+                f"conditional control {item['control']} never adds anything: whenever its condition holds, "
+                f"{' or '.join(rules)} sets a tier that already requires it. Remove the conditional, or drop the "
+                "control from the tier if it should depend on the condition"
+            )
+    return messages
+
+
+def _same(a: Any, b: Any) -> bool:
+    # True == 1 in Python, but a boolean answer never satisfies a numeric condition or the reverse.
+    return isinstance(a, bool) == isinstance(b, bool) and a == b
+
+
+def _number(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _implies(a: dict[str, Any], b: dict[str, Any]) -> bool:
+    """True only if condition `a` holding provably means condition `b` holds."""
+    if "any" in a:
+        return all(_implies(branch, b) for branch in a["any"])
+    if "all" in a and any(_implies(part, b) for part in a["all"]):
+        return True
+    if "any" in b:
+        return any(_implies(a, branch) for branch in b["any"])
+    if "all" in b:
+        return all(_implies(a, part) for part in b["all"])
+    if "all" in a or a.get("question") != b.get("question"):
+        return False
+    if "equals" in a:
+        value = a["equals"]
+        if "equals" in b:
+            return _same(value, b["equals"])
+        if "in" in b:
+            return any(_same(value, option) for option in b["in"])
+        if "gte" in b:
+            return _number(value) and value >= b["gte"]
+        if "lte" in b:
+            return _number(value) and value <= b["lte"]
+        return False
+    if "in" in a:
+        if "in" in b:
+            return all(any(_same(x, y) for y in b["in"]) for x in a["in"])
+        if "equals" in b:
+            return all(_same(x, b["equals"]) for x in a["in"])
+        return False
+    if "gte" in a:
+        return "gte" in b and a["gte"] >= b["gte"]
+    if "lte" in a:
+        return "lte" in b and a["lte"] <= b["lte"]
+    if "contains_any" in a:
+        return "contains_any" in b and set(a["contains_any"]) <= set(b["contains_any"])
+    return False
 
 
 def check_lifecycle_consistency(skill: Skill) -> list[Finding]:

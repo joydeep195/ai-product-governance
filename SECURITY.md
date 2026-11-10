@@ -63,7 +63,7 @@ Every file attached to a GitHub release (wheel, sdist, skill zip) has a signed
 by the release workflow through GitHub artifact attestations (Sigstore). With the [GitHub CLI](https://cli.github.com/):
 
 ```bash
-gh attestation verify ai_product_governance-1.0.0-py3-none-any.whl --repo joydeep195/ai-product-governance
+gh attestation verify ai_product_governance-1.1.0-py3-none-any.whl --repo joydeep195/ai-product-governance
 ```
 
 This proves the file was built by this repository's release workflow from the tagged commit and has not been

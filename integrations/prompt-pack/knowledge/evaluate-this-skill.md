@@ -14,9 +14,11 @@ Check all three. If any fails, stop and tell the user which one and what to do i
 | You can run shell commands | Tell the user to use the copy-and-paste kit: `aipg eval-kit create` |
 | You can start **fresh sub-agents**: separate contexts that see only what you give them, and can read and write files | Same: the copy-and-paste kit. Never answer the prompts in this conversation instead; that contaminates the result |
 
-Then tell the user what it costs before running anything: one sub-agent per answer and one per grading, so the
-full suite is 20 answers and 20 gradings (fewer with `--scenario`), all counted against their plan's usage. Start
-only after they agree.
+Then tell the user what it costs before running anything: one sub-agent per answer and one per grading, so one
+trial of the full suite is 28 answers and 28 gradings (fewer with `--scenario`), all counted against their plan's
+usage. Recommend three trials (`--trials 3`, three times the cost): with one trial per scenario, a single unlucky
+answer moves the score, so a change cannot be told apart from chance. Offer one trial as a quicker check. Start only
+after they agree, with the number of trials they choose.
 
 ## Rules
 
@@ -39,8 +41,8 @@ The result means something only if you follow these exactly.
    aipg eval-kit create --agent-run --tool "<tool> (<model>)"
    ```
 
-   Add `--scenario <id>` (repeatable) to run part of the suite, or `--trials <n>` for repeat runs. Note the kit
-   folder it prints.
+   Add `--trials <n>` with the number of trials the user chose (three recommended), and `--scenario <id>`
+   (repeatable) to run part of the suite. Note the kit folder it prints.
 2. `<kit>/1-ANSWERS.md` lists one line per answer, such as ``Read `<kit>/prompts/A01.md` and do exactly what it
    says.`` Start one fresh sub-agent per line and send it that line. Each sub-agent writes its answer into
    `<kit>/answers/`.

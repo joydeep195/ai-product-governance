@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import date
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -171,3 +172,59 @@ def test_schema_rejects_unknown_mapping_fields(policy: dict[str, Any]) -> None:
     assert any("controls/0/mappings/0" in p and "url" in p for p in policy_problems(policy))
     policy["controls"][0]["mappings"] = [{"framework": "EU AI Act", "reference": "Art. 14", "note": "Human oversight"}]
     assert policy_problems(policy) == []
+
+
+@pytest.mark.parametrize("relative", SHIPPED_POLICIES, ids=["default", "financial-services"])
+def test_every_cited_framework_has_a_dated_official_source(repo: Path, relative: Path) -> None:
+    """The skill cannot look anything up, so each framework carries its source and a last-verified date."""
+    policy = load(repo, relative)
+    catalogue = {framework["id"]: framework for framework in policy["frameworks"]}
+    assert {mapping["framework"] for mapping in all_mappings(policy)} == set(catalogue)
+    for framework in catalogue.values():
+        assert framework["url"].startswith("https://"), framework["id"]
+        verified = date.fromisoformat(framework["last_verified"])
+        assert date(2026, 1, 1) <= verified <= date.today(), framework["id"]
+    assert json.dumps(policy["frameworks"], ensure_ascii=False).isascii()
+
+
+def test_results_name_the_sources_behind_the_required_controls(
+    risk_engine: ModuleType, policy: dict[str, Any], capsys: pytest.CaptureFixture[str]
+) -> None:
+    result = risk_engine.classify(policy, {"consequential_decisions": True})
+    sources = {source["id"]: source for source in result["sources"]}
+    assert {"EU AI Act", "NIST AI RMF 1.0", "ISO/IEC 42001:2023", "GDPR"} <= set(sources)
+    assert sources["EU AI Act"]["url"] == "https://eur-lex.europa.eu/eli/reg/2024/1689/oj"
+    assert "2026/1744" in sources["EU AI Act"]["note"]
+    assert risk_engine.SOURCES_NOTE in result["notes"]
+
+    assert risk_engine.main(["--answers-json", json.dumps({"consequential_decisions": True}), "--format", "md"]) == 0
+    out = capsys.readouterr().out
+    assert "**Sources** (official text; facts as of the date each was last verified):" in out
+    assert "https://eur-lex.europa.eu/eli/reg/2024/1689/oj (last verified " in out
+    assert out.isascii()
+
+
+def test_a_mapping_to_an_unlisted_framework_is_an_error(risk_engine: ModuleType, policy: dict[str, Any]) -> None:
+    policy["controls"][0]["mappings"].append({"framework": "SOC 2", "reference": "CC6.1"})
+    assert any("framework 'SOC 2', which is not in 'frameworks'" in p for p in risk_engine.validate_policy(policy))
+
+
+def test_validate_warns_when_mappings_have_no_sources(tmp_path: Path, policy: dict[str, Any]) -> None:
+    from ai_product_governance.validate import check_policy_file
+
+    del policy["frameworks"]
+    path = tmp_path / "policy.json"
+    path.write_text(json.dumps(policy), encoding="utf-8")
+    findings = check_policy_file(path, "policy.json")
+    assert [f.level for f in findings] == ["warning"]
+    assert "no 'frameworks' list" in findings[0].message
+
+
+def test_gate_3_regulatory_flags_carry_sources_and_dates(skill: Any) -> None:
+    text = skill.read_reference("gate-3-risk-and-controls")
+    section = text.split("## 6. Regulatory flags", 1)[1].split("## Exit criteria", 1)[0]
+    flags = [line for line in section.splitlines() if line.startswith("- **")]
+    assert len(flags) >= 6
+    for flag in flags:
+        assert "last verified 20" in flag or "no source is bundled" in flag or "maps none" in flag, flag
+    assert "as of" in section and "from memory" in section

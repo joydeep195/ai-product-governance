@@ -1,7 +1,7 @@
 {
   "$schema": "./policy.schema.json",
   "policy_id": "aipg-default",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "name": "Default AI product governance policy",
   "owner": "AI governance board",
   "description": "Reference policy shipped with the ai-product-governance skill. Copy it to .ai-governance/policy.json in your workspace and adapt the tiers, rules, controls and approvers to your organisation. Tiers are informed by the EU AI Act risk categories and the NIST AI RMF but are not a legal classification. Each control maps to the EU AI Act, NIST AI RMF and ISO/IEC 42001 requirements it addresses; the mappings are informative, not legal advice.",
@@ -109,8 +109,10 @@
     { "id": "external_publication", "type": "boolean", "text": "Will AI-generated content be published externally under the organisation's name (marketing, documentation, social media)?" },
     { "id": "personal_data", "type": "boolean", "text": "Does the system process personal data beyond business contact details?" },
     { "id": "sensitive_data", "type": "boolean", "text": "Does it process sensitive data: health, biometric, genetic, financial account, government ID, criminal record, or data about children?" },
+    { "id": "outputs_concern_people", "type": "boolean", "text": "Is an identifiable person the subject of the output: does it describe, assess, rank, advise or decide about specific people such as customers, employees, applicants or patients?" },
     { "id": "consequential_decisions", "type": "boolean", "text": "Does the output influence decisions about people's access to employment, credit, insurance, housing, education, healthcare, legal or other essential services?" },
-    { "id": "regulated_advice", "type": "boolean", "text": "Does it give or support regulated advice (medical, legal, financial, tax) or run inside a regulated process?" },
+    { "id": "regulated_advice", "type": "boolean", "text": "Does it give or support regulated advice to people, such as medical, legal, financial or tax advice?" },
+    { "id": "inside_regulated_process", "type": "boolean", "split_from": "regulated_advice", "text": "Does it run inside a regulated process, such as know-your-customer checks, anti-money-laundering or fraud monitoring, complaints or dispute handling, claims handling or regulatory reporting?" },
     { "id": "vulnerable_users", "type": "boolean", "text": "Are children or other vulnerable groups likely to be users or subjects?" },
     { "id": "third_party_model_provider", "type": "boolean", "text": "Will confidential or personal data be sent to an external model provider?" },
     { "id": "uses_retrieval", "type": "boolean", "text": "Does the system retrieve internal documents or records to ground its answers (RAG)?" },
@@ -152,7 +154,7 @@
     },
     { "id": "H-01", "tier": "high", "when": { "question": "consequential_decisions", "equals": true }, "reason": "Influences decisions about people's access to important opportunities or services." },
     { "id": "H-02", "tier": "high", "when": { "question": "sensitive_data", "equals": true }, "reason": "Processes sensitive data." },
-    { "id": "H-03", "tier": "high", "when": { "question": "regulated_advice", "equals": true }, "reason": "Gives or supports regulated advice, or runs inside a regulated process." },
+    { "id": "H-03", "tier": "high", "when": { "question": "regulated_advice", "equals": true }, "reason": "Gives or supports regulated advice (medical, legal, financial or tax)." },
     { "id": "H-04", "tier": "high", "when": { "question": "vulnerable_users", "equals": true }, "reason": "Children or vulnerable people are likely users or subjects." },
     { "id": "H-05", "tier": "high", "when": { "question": "max_financial_impact_per_action", "gte": 1000 }, "reason": "A single output or action can have a direct financial impact of 1,000 or more." },
     {
@@ -174,20 +176,22 @@
     { "id": "L-03", "tier": "limited", "when": { "question": "personal_data", "equals": true }, "reason": "Processes personal data." },
     { "id": "L-04", "tier": "limited", "when": { "question": "third_party_model_provider", "equals": true }, "reason": "Confidential or personal data is sent to an external model provider." },
     { "id": "L-05", "tier": "limited", "when": { "question": "irreversible_actions", "equals": true }, "reason": "Can take actions that are hard to reverse." },
-    { "id": "L-06", "tier": "limited", "when": { "question": "autonomy_level", "in": ["L4", "L5"] }, "reason": "Acts without approval of each individual action." }
+    { "id": "L-06", "tier": "limited", "when": { "question": "autonomy_level", "in": ["L4", "L5"] }, "reason": "Acts without approval of each individual action." },
+    { "id": "L-07", "tier": "limited", "when": { "question": "inside_regulated_process", "equals": true }, "reason": "Runs inside a regulated process, which brings record-keeping, audit and supervisory duties. Other rules decide whether it is high risk, such as decisions about people, sensitive data or financial impact." }
   ],
   "conditional_controls": [
     { "control": "HUM-01", "when": { "question": "autonomy_level", "in": ["L0", "L1", "L2"] }, "reason": "A human reviews every output at this autonomy level." },
     { "control": "HUM-02", "when": { "question": "autonomy_level", "equals": "L3" }, "reason": "Every action needs human approval at L3." },
     { "control": "SEC-02", "when": { "question": "takes_actions", "equals": true }, "reason": "The system can change state through tools." },
     { "control": "OPS-03", "when": { "question": "takes_actions", "equals": true }, "reason": "Every action must be traceable." },
-    { "control": "PRV-04", "when": { "question": "uses_retrieval", "equals": true }, "reason": "Retrieval must respect document permissions." },
-    { "control": "PRV-01", "when": { "question": "personal_data", "equals": true }, "reason": "Personal data is processed." },
-    { "control": "PRV-03", "when": { "question": "third_party_model_provider", "equals": true }, "reason": "Data is shared with an external model provider." },
-    { "control": "TRN-01", "when": { "any": [
-      { "question": "customer_facing", "equals": true },
-      { "question": "external_publication", "equals": true }
-    ] }, "reason": "People outside the organisation encounter AI output." }
+    { "control": "PRV-04", "when": { "question": "uses_retrieval", "equals": true }, "reason": "Retrieval must respect document permissions." }
+  ],
+  "frameworks": [
+    {"id": "EU AI Act", "title": "Regulation (EU) 2024/1689 (Artificial Intelligence Act)", "url": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj", "last_verified": "2026-11-10", "note": "In force. Amended by Regulation (EU) 2026/1744 (Digital Omnibus on AI), published 24 July 2026, including when high-risk obligations apply: check the consolidated text for current dates of application."},
+    {"id": "NIST AI RMF 1.0", "title": "NIST AI 100-1, Artificial Intelligence Risk Management Framework (AI RMF 1.0)", "url": "https://www.nist.gov/itl/ai-risk-management-framework", "last_verified": "2026-11-10", "note": "Released 26 January 2023 and still the current version; NIST states it is being revised, so check for a newer version."},
+    {"id": "ISO/IEC 42001:2023", "title": "ISO/IEC 42001:2023, Information technology - Artificial intelligence - Management system", "url": "https://www.iso.org/standard/42001", "last_verified": "2026-11-10", "note": "Edition 1 (2023) is the published edition."},
+    {"id": "GDPR", "title": "Regulation (EU) 2016/679 (General Data Protection Regulation)", "url": "https://eur-lex.europa.eu/eli/reg/2016/679/oj", "last_verified": "2026-11-10", "note": "In force."},
+    {"id": "OWASP Top 10 for LLM Applications", "title": "OWASP Top 10 for LLM Applications 2025", "url": "https://genai.owasp.org/llm-top-10/", "last_verified": "2026-11-10", "note": "The 2025 edition is the latest the OWASP GenAI Security Project publishes."}
   ],
   "controls": [
     { "id": "GOV-01", "name": "AI inventory registration", "description": "Register the use case in the AI inventory with an accountable owner, tier and status.", "evidence": "Inventory entry ID",
@@ -224,6 +228,13 @@
         { "framework": "ISO/IEC 42001:2023", "reference": "A.6.2.4", "note": "AI system verification and validation" }
       ] },
     { "id": "EVAL-03", "name": "Fairness evaluation", "description": "Pass rates compared across relevant user segments, languages and dialects.", "evidence": "Segment-level eval results and accepted gaps",
+      "applies_when": { "any": [
+        { "question": "outputs_concern_people", "equals": true },
+        { "question": "customer_facing", "equals": true },
+        { "question": "consequential_decisions", "equals": true },
+        { "question": "vulnerable_users", "equals": true }
+      ] },
+      "not_applicable_reason": "No person is the subject of the output, nobody outside the organisation uses it, and it influences no decisions about people or vulnerable groups, so there are no user or subject segments whose results could differ.",
       "mappings": [
         { "framework": "EU AI Act", "reference": "Art. 10", "note": "Data governance, including examination for possible biases" },
         { "framework": "NIST AI RMF 1.0", "reference": "MEASURE 2.11", "note": "Fairness and bias evaluated and documented" },
@@ -262,6 +273,11 @@
         { "framework": "ISO/IEC 42001:2023", "reference": "A.8.2", "note": "System documentation and information for users" }
       ] },
     { "id": "TRN-02", "name": "Explanation and contestability", "description": "Affected people can get an explanation and ask for a human review of the outcome.", "evidence": "Appeal process and response times",
+      "applies_when": { "any": [
+        { "question": "outputs_concern_people", "equals": true },
+        { "question": "consequential_decisions", "equals": true }
+      ] },
+      "not_applicable_reason": "No person is the subject of the output and it influences no decisions about people, so nobody is affected by an outcome they could ask to have explained or reviewed.",
       "mappings": [
         { "framework": "EU AI Act", "reference": "Art. 86", "note": "Right to explanation of individual decision-making" },
         { "framework": "NIST AI RMF 1.0", "reference": "MEASURE 2.9", "note": "Model explained and output interpreted in context" },
