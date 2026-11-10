@@ -1,7 +1,7 @@
 {
   "$schema": "../../../skills/ai-product-governance/assets/policy/policy.schema.json",
   "policy_id": "fs-bank-ai-policy",
-  "version": "2.5.0",
+  "version": "3.0.0",
   "name": "Example: AI policy for a regulated retail bank",
   "owner": "Model risk management committee",
   "description": "Illustrative organisation policy showing how a regulated firm tightens the default: customer-facing AI is high risk, the financial threshold drops to 250, model-risk validation, adverse action reasons, third-party exit planning, complaint monitoring and communications record-keeping are added, and the high tier requires a larger golden set and compliance sign-off. Place it at .ai-governance/policy.json in a workspace. Each control maps to the requirements it addresses, adding SR 26-2 (which replaced SR 11-7), DORA, ECOA and Regulation B, SEC and FINRA record-keeping and the FCA Consumer Duty to the default crosswalk; the mappings are informative, not legal advice.",
@@ -199,6 +199,11 @@
       "id": "sensitive_data",
       "type": "boolean",
       "text": "Does it process sensitive data: health, biometric, genetic, financial account, government ID, criminal record, or data about children?"
+    },
+    {
+      "id": "outputs_concern_people",
+      "type": "boolean",
+      "text": "Is an identifiable person the subject of the output: does it describe, assess, rank, advise or decide about specific people such as customers, employees, applicants or patients?"
     },
     {
       "id": "consequential_decisions",
@@ -716,6 +721,27 @@
       "name": "Fairness evaluation",
       "description": "Pass rates compared across relevant user segments, languages and dialects.",
       "evidence": "Segment-level eval results and accepted gaps",
+      "applies_when": {
+        "any": [
+          {
+            "question": "outputs_concern_people",
+            "equals": true
+          },
+          {
+            "question": "customer_facing",
+            "equals": true
+          },
+          {
+            "question": "consequential_decisions",
+            "equals": true
+          },
+          {
+            "question": "vulnerable_users",
+            "equals": true
+          }
+        ]
+      },
+      "not_applicable_reason": "No person is the subject of the output, nobody outside the organisation uses it, and it influences no decisions about people or vulnerable groups, so there are no user or subject segments whose results could differ.",
       "mappings": [
         {
           "framework": "EU AI Act",
@@ -889,6 +915,19 @@
       "name": "Explanation and contestability",
       "description": "Affected people can get an explanation and ask for a human review of the outcome.",
       "evidence": "Appeal process and response times",
+      "applies_when": {
+        "any": [
+          {
+            "question": "outputs_concern_people",
+            "equals": true
+          },
+          {
+            "question": "consequential_decisions",
+            "equals": true
+          }
+        ]
+      },
+      "not_applicable_reason": "No person is the subject of the output and it influences no decisions about people, so nobody is affected by an outcome they could ask to have explained or reviewed.",
       "mappings": [
         {
           "framework": "EU AI Act",

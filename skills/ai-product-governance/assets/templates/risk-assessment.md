@@ -8,7 +8,7 @@
 | Policy | <policy_id> v<version> |
 | Last updated | YYYY-MM-DD |
 
-**Risk tier:** minimal · limited · high · prohibited  **Maximum autonomy at launch:** L_
+**Risk tier:** minimal · limited · high · prohibited (or `Incomplete (provisional <tier>; could rise to <tier>)`)  **Maximum autonomy at launch:** L_
 
 ## 1. Tier classification
 Paste the calculator output (`scripts/risk_tier.py --format md`).
@@ -16,7 +16,7 @@ Paste the calculator output (`scripts/risk_tier.py --format md`).
 | Rule triggered | Tier | Reason |
 |---|---|---|
 
-**Unanswered questions (answering them can only raise the tier):**
+**Unanswered questions (answering them can only raise the tier or add controls; ask them, or list each assumed answer in the Assumptions Ledger):**
 
 ## 2. Risk register
 Likelihood and impact on a 1–5 scale. Write `N/A — <reason>` for categories that do not apply.
@@ -41,6 +41,11 @@ Copy the control, "Required by" and "Maps to" values from the calculator output 
 
 | Control ID | Control | Required by (tier / conditional rule) | Maps to | Implementation | Evidence | Owner (role) | Status |
 |---|---|---|---|---|---|---|---|
+
+**Not applicable** (from the calculator's "Not applicable" table; keep each row so reviewers can see it was considered):
+
+| Control ID | Control | Required by | Why not |
+|---|---|---|---|
 
 ## 5. Approvers required
 | Role | Status |

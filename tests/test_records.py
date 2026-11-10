@@ -76,7 +76,7 @@ def test_example_record_passes_against_the_bank_policy(repo: Path) -> None:
     assert (result.record_id, result.tier, result.policy) == (
         "card-dispute-replies",
         "High",
-        "fs-bank-ai-policy v2.5.0",
+        "fs-bank-ai-policy v3.0.0",
     )
 
 
@@ -120,7 +120,7 @@ def _remove_approval(role: str) -> Callable[[Record], None]:
     [
         pytest.param(
             lambda r: r.update(tier="limited"),
-            "the stored tier 'limited' is stale: the answers classify as 'high' under fs-bank-ai-policy v2.5.0",
+            "the stored tier 'limited' is stale: the answers classify as 'high' under fs-bank-ai-policy v3.0.0",
             id="stale-tier",
         ),
         pytest.param(
@@ -190,7 +190,7 @@ def _remove_approval(role: str) -> Callable[[Record], None]:
         ),
         pytest.param(
             lambda r: r["questionnaire"]["answers"].update(favourite_colour=True),
-            "the answers are not valid for fs-bank-ai-policy v2.5.0: unknown question IDs: favourite_colour",
+            "the answers are not valid for fs-bank-ai-policy v3.0.0: unknown question IDs: favourite_colour",
             id="invalid-answers",
         ),
         pytest.param(
@@ -206,7 +206,7 @@ def _remove_approval(role: str) -> Callable[[Record], None]:
         ),
         pytest.param(
             lambda r: r.update(policy_id="aipg-default"),
-            "the record was certified against policy 'aipg-default', not fs-bank-ai-policy v2.5.0",
+            "the record was certified against policy 'aipg-default', not fs-bank-ai-policy v3.0.0",
             id="other-policy",
         ),
         pytest.param(
@@ -242,10 +242,10 @@ def test_re_certification_lapses_after_recertify_by(workspace: Path) -> None:
 def test_a_new_policy_version_requires_re_certification(workspace: Path) -> None:
     policy_path = workspace / ".ai-governance" / "policy.json"
     policy = json.loads(policy_path.read_text(encoding="utf-8"))
-    policy["version"] = "2.6.0"
+    policy["version"] = "3.1.0"
     policy_path.write_text(json.dumps(policy), encoding="utf-8")
     assert problems(workspace / RECORD) == [
-        "the policy changed since certification (v2.5.0 -> v2.6.0): repeat the gate review, then update "
+        "the policy changed since certification (v3.0.0 -> v3.1.0): repeat the gate review, then update "
         "policy_version, last_certified and recertify_by"
     ]
 
@@ -261,7 +261,7 @@ def test_each_record_uses_its_own_workspace_policy(
     assert problems(workspace / RECORD) == []
     # An explicit policy (or $AIPG_POLICY) wins, exactly as in the engine's resolution order.
     found = problems(workspace / RECORD, policy=str(skill.default_policy_path))
-    assert "the record was certified against policy 'fs-bank-ai-policy', not aipg-default v1.1.0" in found
+    assert "the record was certified against policy 'fs-bank-ai-policy', not aipg-default v2.0.0" in found
 
 
 def test_unreadable_records_and_policies_fail(workspace: Path, tmp_path: Path) -> None:
@@ -279,7 +279,7 @@ def test_unreadable_records_and_policies_fail(workspace: Path, tmp_path: Path) -
 def test_check_command_exit_codes_and_formats(workspace: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["check", str(workspace), "--as-of", "2026-10-18"]) == 0
     out = capsys.readouterr().out
-    assert "PASS" in out and "Card dispute reply drafting (High, fs-bank-ai-policy v2.5.0)" in out
+    assert "PASS" in out and "Card dispute reply drafting (High, fs-bank-ai-policy v3.0.0)" in out
     assert out.rstrip().endswith("1 use-case record checked: 1 passed, 0 failed.")
 
     edit(workspace, _remove_approval("Legal counsel"))
@@ -287,7 +287,7 @@ def test_check_command_exit_codes_and_formats(workspace: Path, capsys: pytest.Ca
     markdown = capsys.readouterr().out
     assert markdown.startswith("### AI governance check: 1 of 1 use case failing\n")
     assert (
-        "| `card-dispute-replies` Card dispute reply drafting | High | fs-bank-ai-policy v2.5.0 | **Fail** (1 issue) |"
+        "| `card-dispute-replies` Card dispute reply drafting | High | fs-bank-ai-policy v3.0.0 | **Fail** (1 issue) |"
         in markdown
     )
     assert "#### `card-dispute-replies`: Card dispute reply drafting" in markdown
@@ -327,13 +327,13 @@ def test_record_new_writes_an_open_record_that_check_rejects(
     argv = ["record", "new", "--answers", str(answers_file(tmp_path, repo)), "--id", "refund-agent"]
     assert main([*argv, "--date", "2026-01-31", "--owner", "Payments team"]) == 0
     out = capsys.readouterr().out
-    assert "Refund agent: High tier under fs-bank-ai-policy v2.5.0, from the workspace policy" in out
+    assert "Refund agent: High tier under fs-bank-ai-policy v3.0.0, from the workspace policy" in out
 
     path = workspace / ".ai-governance" / "use-cases" / "refund-agent.json"
     record = json.loads(path.read_text(encoding="utf-8"))
     policy = load_effective_policy(cwd=workspace)
     _, expected = new_record(record["questionnaire"]["answers"], "refund-agent", policy, on=date(2026, 1, 31))
-    assert (record["policy_id"], record["policy_version"], record["tier"]) == ("fs-bank-ai-policy", "2.5.0", "high")
+    assert (record["policy_id"], record["policy_version"], record["tier"]) == ("fs-bank-ai-policy", "3.0.0", "high")
     assert (record["owner"], record["last_certified"], record["questionnaire"]["answered_on"]) == (
         "Payments team",
         "2026-01-31",
@@ -404,3 +404,40 @@ def test_record_new_refuses_prohibited_and_invalid_input(
 )
 def test_add_months_clamps_to_the_end_of_the_month(start: date, months: int, expected: date) -> None:
     assert add_months(start, months) == expected
+
+
+def test_records_do_not_require_controls_the_answers_rule_out(tmp_path: Path) -> None:
+    """Internal resilience-report drafting is high risk, but nobody is the subject of the output."""
+    policy = load_effective_policy(None, cwd=tmp_path)
+    answers = {
+        "customer_facing": False,
+        "external_publication": False,
+        "personal_data": False,
+        "sensitive_data": False,
+        "outputs_concern_people": False,
+        "consequential_decisions": False,
+        "regulated_advice": False,
+        "vulnerable_users": False,
+        "third_party_model_provider": False,
+        "uses_retrieval": False,
+        "takes_actions": False,
+        "irreversible_actions": False,
+        "autonomy_level": "L2",
+        "max_financial_impact_per_action": 5000,
+        "prohibited_practices": ["none"],
+    }
+    record, result = new_record(answers, "resilience-report", policy, on=date(2026, 11, 10))
+    assert record["tier"] == "high"
+    listed = {c["id"] for c in record["controls"]}
+    assert not listed & {"EVAL-03", "TRN-02"}
+    assert {c["id"] for c in result["not_applicable_controls"]} == {"EVAL-03", "TRN-02"}
+    for entry in record["controls"]:
+        entry.update(status="done", evidence_url="https://example.test/evidence", owner="Owner")
+    for approval in record["approvals"]:
+        approval.update(name="Signer", date="2026-11-10")
+    record.update(owner="Platform team")
+    record["questionnaire"]["answered_by"] = "Platform team"
+    path = tmp_path / ".ai-governance" / "use-cases" / "resilience-report.json"
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps(record), encoding="utf-8")
+    assert check_record(path, policy, as_of=date(2026, 11, 11)).problems == ()

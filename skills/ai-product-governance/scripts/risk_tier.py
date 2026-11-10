@@ -3,9 +3,10 @@
 
 Evaluates questionnaire answers against a governance policy (policy-as-code) and
 reports the risk tier, the rules that triggered it, required controls (with any
-framework mappings the policy defines), approvers, evaluation minimums and the
-autonomy cap at launch. The same answers and policy always produce the same
-result, so the output is suitable for audit trails.
+framework mappings the policy defines), controls the answers rule out (with the
+reason), approvers, evaluation minimums and the autonomy cap at launch. The same
+answers and policy always produce the same result, so the output is suitable for
+audit trails.
 
 Standard library only; runs on Python 3.9+.
 
@@ -237,6 +238,20 @@ def validate_policy(policy: Any) -> List[str]:
         _check_condition(
             conditional.get("when"), questions, f"conditional control '{conditional.get('control')}'", problems
         )
+
+    for control in policy["controls"]:
+        has_condition = "applies_when" in control
+        reason = control.get("not_applicable_reason")
+        if has_condition != (reason is not None):
+            problems.append(
+                f"control '{control.get('id')}': 'applies_when' and 'not_applicable_reason' must be given together"
+            )
+        if reason is not None and (not isinstance(reason, str) or not reason.strip()):
+            problems.append(f"control '{control.get('id')}': 'not_applicable_reason' must be a non-empty string")
+        if has_condition:
+            _check_condition(
+                control["applies_when"], questions, f"control '{control.get('id')}' applies_when", problems
+            )
     return problems
 
 
@@ -316,6 +331,16 @@ def evaluate_condition(condition: Dict[str, Any], answers: Dict[str, Any]) -> Op
     raise PolicyError(f"Unsupported condition: {condition}")
 
 
+def condition_questions(condition: Dict[str, Any]) -> List[str]:
+    """Question IDs a condition reads, in order of first appearance."""
+    if "all" in condition or "any" in condition:
+        found: List[str] = []
+        for item in condition.get("all", condition.get("any", [])):
+            found += [question_id for question_id in condition_questions(item) if question_id not in found]
+        return found
+    return [condition["question"]]
+
+
 # --------------------------------------------------------------------------- classification
 
 
@@ -353,6 +378,8 @@ def classify(
             could_rise_to = candidate
 
     required: List[Dict[str, Any]] = []
+    not_applicable: List[Dict[str, Any]] = []
+    applicability_pending: List[str] = []
     seen = set()
 
     def add_control(control_id: str, required_by: str) -> None:
@@ -360,6 +387,20 @@ def classify(
             return
         seen.add(control_id)
         control = controls[control_id]
+        if "applies_when" in control:
+            applies = evaluate_condition(control["applies_when"], normalised)
+            if applies is False:
+                not_applicable.append(
+                    {
+                        "id": control_id,
+                        "name": control["name"],
+                        "required_by": required_by,
+                        "reason": control["not_applicable_reason"],
+                    }
+                )
+                return
+            if applies is None:
+                applicability_pending.append(control_id)
         required.append(
             {
                 "id": control_id,
@@ -414,6 +455,25 @@ def classify(
             f"Planned autonomy {requested} exceeds the launch cap {cap} for the {tier['name']} tier. "
             f"Launch at {cap} or lower and promote with evidence."
         )
+    if not_applicable:
+        notes.append(
+            "Not applicable under this policy, given these answers: "
+            + "; ".join(f"{c['id']} ({c['name']}): {c['reason']}" for c in not_applicable)
+            + ". Show them in the control plan as 'not applicable' with the reason; do not drop them silently."
+        )
+    if applicability_pending:
+        pending_questions: List[str] = []
+        for control_id in applicability_pending:
+            pending_questions += [
+                q
+                for q in condition_questions(controls[control_id]["applies_when"])
+                if q in unanswered and q not in pending_questions
+            ]
+        notes.append(
+            f"{', '.join(applicability_pending)} stay required until "
+            + ", ".join(f"`{q}`" for q in pending_questions)
+            + " is answered: the answer may show they do not apply."
+        )
     if any(control["mappings"] for control in required):
         notes.append(MAPPINGS_NOTE)
 
@@ -442,6 +502,7 @@ def classify(
         "planned_autonomy": requested,
         "planned_autonomy_within_cap": within_cap,
         "required_controls": required,
+        "not_applicable_controls": not_applicable,
         "approvers": list(tier.get("approvers", [])),
         "eval_requirements": tier.get("eval_requirements"),
         "recertification_months": tier.get("recertification_months"),
@@ -495,6 +556,12 @@ def render_markdown(result: Dict[str, Any]) -> str:
         else:
             lines += ["", "| Control | Name | Required by | Evidence |", "|---|---|---|---|"]
             lines += [f"| {c['id']} | {c['name']} | {c['required_by']} | {c['evidence']} |" for c in controls]
+        if result["not_applicable_controls"]:
+            lines += ["", "**Not applicable:**", "", "| Control | Name | Required by | Why not |", "|---|---|---|---|"]
+            lines += [
+                f"| {c['id']} | {c['name']} | {c['required_by']} | not applicable: {c['reason']} |"
+                for c in result["not_applicable_controls"]
+            ]
         lines += ["", "**Approvers:** " + ", ".join(result["approvers"])]
         evals = result["eval_requirements"] or {}
         if evals:

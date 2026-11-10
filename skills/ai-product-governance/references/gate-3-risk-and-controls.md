@@ -52,7 +52,7 @@ Moving up a level requires evidence. The default policy requires, for one-level 
 
 ## 4. Map the required controls
 
-The policy lists the required controls for the tier, plus conditional controls (for example least-privilege tooling when the system takes actions, or permission-aware retrieval when it uses RAG). For each control, state how it is implemented, what the evidence is, and who owns it (a role). Also cite the framework references in the control's `mappings`, which the calculator returns on each required control (the "Maps to" column of its Markdown output), so a reviewer can trace the control to the requirement it addresses. Say that the mappings are informative, not legal advice: they do not show that a requirement applies or is met, and legal and compliance teams confirm applicability.
+The policy lists the required controls for the tier, plus conditional controls (for example least-privilege tooling when the system takes actions, or permission-aware retrieval when it uses RAG). A control can also be ruled out: the calculator lists controls whose `applies_when` condition the answers make false under "Not applicable", with the policy's reason (for example fairness evaluation when no person is the subject of the output, nobody outside the organisation uses it and it influences no decisions about people). Copy them into the control plan as `not applicable: <reason>`; never drop a control silently, and never rule one out yourself when the calculator still lists it as required. For each control, state how it is implemented, what the evidence is, and who owns it (a role). Also cite the framework references in the control's `mappings`, which the calculator returns on each required control (the "Maps to" column of its Markdown output), so a reviewer can trace the control to the requirement it addresses. Say that the mappings are informative, not legal advice: they do not show that a requirement applies or is met, and legal and compliance teams confirm applicability.
 
 The default control catalogue:
 
@@ -110,5 +110,5 @@ Route to legal and compliance review whenever one of these applies:
 - [ ] Tier computed from the policy, with the policy ID and version, the triggering rules, and any unanswered questions.
 - [ ] Risk register covering every category, with `N/A — <reason>` where a category does not apply.
 - [ ] Autonomy level chosen within the tier cap, with promotion criteria.
-- [ ] Control plan: every required and conditional control with its implementation, evidence, owner and the framework references from its `mappings`, marked as informative, not legal advice.
+- [ ] Control plan: every required and conditional control with its implementation, evidence, owner and the framework references from its `mappings`, marked as informative, not legal advice; every not-applicable control listed with its reason.
 - [ ] Required approvers identified and regulatory flags routed.

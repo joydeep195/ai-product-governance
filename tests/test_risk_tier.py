@@ -12,6 +12,7 @@ ALL_NO: dict[str, Any] = {
     "external_publication": False,
     "personal_data": False,
     "sensitive_data": False,
+    "outputs_concern_people": False,
     "consequential_decisions": False,
     "regulated_advice": False,
     "vulnerable_users": False,
@@ -164,6 +165,74 @@ def test_prohibited_is_final_even_when_incomplete(risk_engine: ModuleType, polic
     assert result["status"] == "incomplete"
     assert result["headline"] == "Prohibited"
     assert any("final" in note for note in result["notes"])
+
+
+# An internal AI that drafts an infrastructure resilience report: high risk because one wrong report can be costly,
+# but nobody is the subject of the output, so fairness and contestability have nothing to act on.
+RESILIENCE_REPORT = answers(max_financial_impact_per_action=5000)
+
+
+def test_controls_with_nobody_affected_are_shown_as_not_applicable(
+    risk_engine: ModuleType, policy: dict[str, Any]
+) -> None:
+    result = risk_engine.classify(policy, RESILIENCE_REPORT)
+    assert result["tier"]["id"] == "high"
+    required = [c["id"] for c in result["required_controls"]]
+    ruled_out = {c["id"]: c for c in result["not_applicable_controls"]}
+    assert "EVAL-03" not in required and "TRN-02" not in required
+    assert set(ruled_out) == {"EVAL-03", "TRN-02"}
+    assert ruled_out["TRN-02"]["required_by"] == "tier: high"
+    assert ruled_out["TRN-02"]["reason"].startswith("No person is the subject of the output")
+    assert any("do not drop them silently" in note for note in result["notes"])
+
+
+def test_not_applicable_controls_are_listed_in_markdown(
+    risk_engine: ModuleType, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert risk_engine.main(["--answers-json", json.dumps(RESILIENCE_REPORT), "--format", "md"]) == 0
+    out = capsys.readouterr().out
+    assert "**Not applicable:**" in out
+    assert "| EVAL-03 | Fairness evaluation | tier: high | not applicable: No person is the subject" in out
+    assert out.isascii()
+
+
+@pytest.mark.parametrize(
+    ("overrides", "required", "ruled_out"),
+    [
+        ({"outputs_concern_people": True}, {"EVAL-03", "TRN-02"}, set()),
+        ({"consequential_decisions": True}, {"EVAL-03", "TRN-02"}, set()),
+        ({"customer_facing": True}, {"EVAL-03"}, {"TRN-02"}),  # users outside the org, but nobody is assessed
+        ({"vulnerable_users": True}, {"EVAL-03"}, {"TRN-02"}),
+    ],
+)
+def test_answers_that_bring_people_into_scope_keep_the_controls(
+    risk_engine: ModuleType,
+    policy: dict[str, Any],
+    overrides: dict[str, Any],
+    required: set[str],
+    ruled_out: set[str],
+) -> None:
+    result = risk_engine.classify(policy, {**RESILIENCE_REPORT, **overrides})
+    assert required <= {c["id"] for c in result["required_controls"]}
+    assert {c["id"] for c in result["not_applicable_controls"]} == ruled_out
+
+
+def test_unanswered_applicability_keeps_the_control_required(risk_engine: ModuleType, policy: dict[str, Any]) -> None:
+    partial = dict(RESILIENCE_REPORT)
+    del partial["outputs_concern_people"]
+    result = risk_engine.classify(policy, partial)
+    assert {"EVAL-03", "TRN-02"} <= {c["id"] for c in result["required_controls"]}
+    assert result["not_applicable_controls"] == []
+    assert any("EVAL-03, TRN-02 stay required until `outputs_concern_people`" in note for note in result["notes"])
+
+
+def test_policy_validation_checks_applicability(risk_engine: ModuleType, policy: dict[str, Any]) -> None:
+    fairness = next(c for c in policy["controls"] if c["id"] == "EVAL-03")
+    del fairness["not_applicable_reason"]
+    fairness["applies_when"] = {"question": "nobody_asked_this", "equals": True}
+    problems = risk_engine.validate_policy(policy)
+    assert any("must be given together" in p for p in problems)
+    assert any("applies_when: unknown question 'nobody_asked_this'" in p for p in problems)
 
 
 @pytest.mark.parametrize(

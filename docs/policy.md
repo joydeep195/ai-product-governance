@@ -22,7 +22,7 @@ Every result names the policy ID, version and source, so artifacts are traceable
 | `questions` | The questionnaire (boolean, number, enum, multiselect) |
 | `rules` | Conditions that raise the tier; the highest triggered tier wins |
 | `conditional_controls` | Controls added by specific answers regardless of tier (for example permission-aware retrieval when RAG is used) |
-| `controls` | The control catalogue with the evidence each control requires and, optionally, the framework requirements it maps to |
+| `controls` | The control catalogue with the evidence each control requires and, optionally, the framework requirements it maps to and an `applies_when` condition that rules the control out |
 | `autonomy_levels`, `autonomy_promotion` | The L0-L5 ladder and the evidence needed to move up |
 | `incident_severities` | SEV definitions used by Gate 5 |
 
@@ -51,6 +51,29 @@ carries `"status": "incomplete"` and a headline such as `Incomplete (provisional
 instead of a bare tier, and the skill tells the agent to ask the missing questions, or log them in the Assumptions
 Ledger, before it presents any tier. The calculator still exits 0, so an agent reads the explanation instead of
 falling back to classifying by hand; add `--strict` (to `risk_tier.py` or `aipg tier`) to exit 4 in CI instead.
+
+## Ruling controls out: `applies_when`
+
+Tiers and conditional controls can only add controls. A control whose purpose depends on the facts, such as
+fairness evaluation, which needs people whose results could differ, can carry an `applies_when` condition and a
+`not_applicable_reason`:
+
+```json
+{ "id": "TRN-02", "name": "Explanation and contestability", "...": "...",
+  "applies_when": { "any": [
+    { "question": "outputs_concern_people", "equals": true },
+    { "question": "consequential_decisions", "equals": true }
+  ] },
+  "not_applicable_reason": "No person is the subject of the output and it influences no decisions about people, so nobody is affected by an outcome they could ask to have explained or reviewed." }
+```
+
+Whenever a tier or a conditional requires the control and the answers make the condition false, the result lists it
+under `not_applicable_controls` (and a "Not applicable" table in Markdown) with the reason, instead of requiring it.
+An unanswered question keeps the control required. `aipg record new` and `aipg check` require only the applicable
+controls. The default policy uses this for `EVAL-03` (fairness evaluation) and `TRN-02` (explanation and
+contestability), based on the `outputs_concern_people` question: an internal AI that drafts an infrastructure
+report can be high risk because a wrong report is costly, yet have nobody to evaluate for fairness or to explain an
+outcome to. To make a control unconditional again, delete its `applies_when` and `not_applicable_reason`.
 
 ## Customising
 

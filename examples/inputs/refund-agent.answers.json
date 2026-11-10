@@ -3,6 +3,7 @@
   "external_publication": false,
   "personal_data": true,
   "sensitive_data": false,
+  "outputs_concern_people": true,
   "consequential_decisions": false,
   "regulated_advice": false,
   "vulnerable_users": false,

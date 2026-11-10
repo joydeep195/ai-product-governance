@@ -128,6 +128,15 @@
           "name": { "type": "string" },
           "description": { "type": "string" },
           "evidence": { "type": "string" },
+          "applies_when": {
+            "$ref": "#/$defs/condition",
+            "description": "When the control applies. If the answers make this false, every tier or conditional that requires the control lists it as not applicable, with not_applicable_reason, instead of requiring it. Unanswered questions keep it required."
+          },
+          "not_applicable_reason": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Why the control does not apply when applies_when is false; shown to reviewers as 'not applicable: <reason>'."
+          },
           "mappings": {
             "type": "array",
             "description": "Informative crosswalk to the external frameworks and regulations this control addresses. Not legal advice.",
@@ -143,6 +152,10 @@
               }
             }
           }
+        },
+        "dependentRequired": {
+          "applies_when": ["not_applicable_reason"],
+          "not_applicable_reason": ["applies_when"]
         }
       }
     },
