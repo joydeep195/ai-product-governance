@@ -15,6 +15,7 @@ ALL_NO: dict[str, Any] = {
     "outputs_concern_people": False,
     "consequential_decisions": False,
     "regulated_advice": False,
+    "inside_regulated_process": False,
     "vulnerable_users": False,
     "third_party_model_provider": False,
     "uses_retrieval": False,
@@ -165,6 +166,43 @@ def test_prohibited_is_final_even_when_incomplete(risk_engine: ModuleType, polic
     assert result["status"] == "incomplete"
     assert result["headline"] == "Prohibited"
     assert any("final" in note for note in result["notes"])
+
+
+def test_running_inside_a_regulated_process_is_limited_not_high(
+    risk_engine: ModuleType, policy: dict[str, Any]
+) -> None:
+    """Drafting part of a regulatory report is regulated work, but not regulated advice: it is not high by itself."""
+    result = risk_engine.classify(policy, answers(inside_regulated_process=True))
+    assert result["tier"]["id"] == "limited"
+    assert [r["id"] for r in result["triggered_rules"]] == ["L-07"]
+    assert risk_engine.classify(policy, answers(regulated_advice=True))["tier"]["id"] == "high"
+
+
+def test_answers_from_before_the_split_still_work_and_explain_it(
+    risk_engine: ModuleType, policy: dict[str, Any]
+) -> None:
+    old = {k: v for k, v in answers(regulated_advice=True).items() if k != "inside_regulated_process"}
+    result = risk_engine.classify(policy, old)
+    assert result["tier"]["id"] == "high"  # an old "yes" never drops a tier without a person re-checking it
+    assert result["status"] == "incomplete"
+    assert result["unanswered_questions"] == ["inside_regulated_process"]
+    split = [note for note in result["notes"] if "was split out of `regulated_advice`" in note]
+    assert len(split) == 1 and "Re-check `regulated_advice`" in split[0]
+
+    old_no = {k: v for k, v in answers().items() if k != "inside_regulated_process"}
+    result = risk_engine.classify(policy, old_no)
+    assert result["headline"] == "Incomplete (provisional Minimal; could rise to Limited)"
+    assert any("was split out of" in note for note in result["notes"])
+
+
+def test_no_split_note_when_neither_question_is_answered(risk_engine: ModuleType, policy: dict[str, Any]) -> None:
+    assert not any("split out of" in note for note in risk_engine.classify(policy, {})["notes"])
+
+
+def test_policy_validation_checks_split_from(risk_engine: ModuleType, policy: dict[str, Any]) -> None:
+    question = next(q for q in policy["questions"] if q["id"] == "inside_regulated_process")
+    question["split_from"] = "no_such_question"
+    assert any("split_from unknown question 'no_such_question'" in p for p in risk_engine.validate_policy(policy))
 
 
 # An internal AI that drafts an infrastructure resilience report: high risk because one wrong report can be costly,

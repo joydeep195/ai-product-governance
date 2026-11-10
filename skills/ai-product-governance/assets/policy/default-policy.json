@@ -111,7 +111,8 @@
     { "id": "sensitive_data", "type": "boolean", "text": "Does it process sensitive data: health, biometric, genetic, financial account, government ID, criminal record, or data about children?" },
     { "id": "outputs_concern_people", "type": "boolean", "text": "Is an identifiable person the subject of the output: does it describe, assess, rank, advise or decide about specific people such as customers, employees, applicants or patients?" },
     { "id": "consequential_decisions", "type": "boolean", "text": "Does the output influence decisions about people's access to employment, credit, insurance, housing, education, healthcare, legal or other essential services?" },
-    { "id": "regulated_advice", "type": "boolean", "text": "Does it give or support regulated advice (medical, legal, financial, tax) or run inside a regulated process?" },
+    { "id": "regulated_advice", "type": "boolean", "text": "Does it give or support regulated advice to people, such as medical, legal, financial or tax advice?" },
+    { "id": "inside_regulated_process", "type": "boolean", "split_from": "regulated_advice", "text": "Does it run inside a regulated process, such as know-your-customer checks, anti-money-laundering or fraud monitoring, complaints or dispute handling, claims handling or regulatory reporting?" },
     { "id": "vulnerable_users", "type": "boolean", "text": "Are children or other vulnerable groups likely to be users or subjects?" },
     { "id": "third_party_model_provider", "type": "boolean", "text": "Will confidential or personal data be sent to an external model provider?" },
     { "id": "uses_retrieval", "type": "boolean", "text": "Does the system retrieve internal documents or records to ground its answers (RAG)?" },
@@ -153,7 +154,7 @@
     },
     { "id": "H-01", "tier": "high", "when": { "question": "consequential_decisions", "equals": true }, "reason": "Influences decisions about people's access to important opportunities or services." },
     { "id": "H-02", "tier": "high", "when": { "question": "sensitive_data", "equals": true }, "reason": "Processes sensitive data." },
-    { "id": "H-03", "tier": "high", "when": { "question": "regulated_advice", "equals": true }, "reason": "Gives or supports regulated advice, or runs inside a regulated process." },
+    { "id": "H-03", "tier": "high", "when": { "question": "regulated_advice", "equals": true }, "reason": "Gives or supports regulated advice (medical, legal, financial or tax)." },
     { "id": "H-04", "tier": "high", "when": { "question": "vulnerable_users", "equals": true }, "reason": "Children or vulnerable people are likely users or subjects." },
     { "id": "H-05", "tier": "high", "when": { "question": "max_financial_impact_per_action", "gte": 1000 }, "reason": "A single output or action can have a direct financial impact of 1,000 or more." },
     {
@@ -175,7 +176,8 @@
     { "id": "L-03", "tier": "limited", "when": { "question": "personal_data", "equals": true }, "reason": "Processes personal data." },
     { "id": "L-04", "tier": "limited", "when": { "question": "third_party_model_provider", "equals": true }, "reason": "Confidential or personal data is sent to an external model provider." },
     { "id": "L-05", "tier": "limited", "when": { "question": "irreversible_actions", "equals": true }, "reason": "Can take actions that are hard to reverse." },
-    { "id": "L-06", "tier": "limited", "when": { "question": "autonomy_level", "in": ["L4", "L5"] }, "reason": "Acts without approval of each individual action." }
+    { "id": "L-06", "tier": "limited", "when": { "question": "autonomy_level", "in": ["L4", "L5"] }, "reason": "Acts without approval of each individual action." },
+    { "id": "L-07", "tier": "limited", "when": { "question": "inside_regulated_process", "equals": true }, "reason": "Runs inside a regulated process, which brings record-keeping, audit and supervisory duties. Other rules decide whether it is high risk, such as decisions about people, sensitive data or financial impact." }
   ],
   "conditional_controls": [
     { "control": "HUM-01", "when": { "question": "autonomy_level", "in": ["L0", "L1", "L2"] }, "reason": "A human reviews every output at this autonomy level." },

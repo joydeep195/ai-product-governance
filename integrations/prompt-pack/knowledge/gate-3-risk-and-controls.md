@@ -14,8 +14,8 @@ The default tiers, summarised (the policy file is authoritative):
 | Tier | Typical profile | Example |
 |---|---|---|
 | Minimal | Internal and assistive; no personal data beyond business contact details | Summariser for internal engineering documents |
-| Limited | Customer-facing or externally published output, personal data, data sent to an external model provider, or actions that are hard to reverse | Support-reply drafts that agents send to customers |
-| High | Influences decisions about people's access to jobs, credit, insurance, housing, education, healthcare or essential services; sensitive data; regulated advice; children or vulnerable users; high-value or autonomous actions affecting customers | CV screening; claims triage; an agent that issues refunds without approval |
+| Limited | Customer-facing or externally published output, personal data, data sent to an external model provider, actions that are hard to reverse, or work inside a regulated process (for example KYC checks, complaints handling or regulatory reporting) | Support-reply drafts that agents send to customers; drafting a section of a regulatory report for analysts to review |
+| High | Influences decisions about people's access to jobs, credit, insurance, housing, education, healthcare or essential services; sensitive data; regulated advice (medical, legal, financial or tax); children or vulnerable users; high-value or autonomous actions affecting customers | CV screening; claims triage; an agent that issues refunds without approval |
 | Prohibited | Practices the organisation forbids outright, such as manipulative techniques, exploiting vulnerabilities, social scoring or emotion recognition of employees | — |
 
 The default tiers are informed by the risk categories of the EU AI Act and the NIST AI Risk Management Framework, but they are **not** a legal classification. Legal and compliance teams decide regulatory status.

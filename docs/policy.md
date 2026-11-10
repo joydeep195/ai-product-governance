@@ -19,7 +19,7 @@ Every result names the policy ID, version and source, so artifacts are traceable
 | Section | Purpose |
 |---|---|
 | `tiers` | Ranked risk tiers with required controls, approvers, the maximum autonomy at launch, re-certification cadence and eval minimums. A tier with `"prohibited": true` stops the work |
-| `questions` | The questionnaire (boolean, number, enum, multiselect) |
+| `questions` | The questionnaire (boolean, number, enum, multiselect); `split_from` marks a question split out of an older one |
 | `rules` | Conditions that raise the tier; the highest triggered tier wins |
 | `conditional_controls` | Controls added by specific answers regardless of tier (for example permission-aware retrieval when RAG is used) |
 | `controls` | The control catalogue with the evidence each control requires and, optionally, the framework requirements it maps to and an `applies_when` condition that rules the control out |
@@ -51,6 +51,20 @@ carries `"status": "incomplete"` and a headline such as `Incomplete (provisional
 instead of a bare tier, and the skill tells the agent to ask the missing questions, or log them in the Assumptions
 Ledger, before it presents any tier. The calculator still exits 0, so an agent reads the explanation instead of
 falling back to classifying by hand; add `--strict` (to `risk_tier.py` or `aipg tier`) to exit 4 in CI instead.
+
+## Splitting a question: `split_from`
+
+A question that does two jobs over-classifies. The default policy's `regulated_advice` used to cover both regulated
+advice and running inside a regulated process, so almost every banking or fintech use came out high risk. Since
+policy 2.0.0 it asks only about regulated advice (rule `H-03`, high), and `inside_regulated_process` (rule `L-07`,
+limited) covers KYC checks, AML or fraud monitoring, complaints or dispute handling, claims handling and regulatory
+reporting. Whether such work is high risk is then decided by the rules that measure harm: decisions about people,
+sensitive data, financial impact and autonomy.
+
+The new question carries `"split_from": "regulated_advice"`. Answer files written before the split keep working:
+the key is unchanged, so an old `true` still produces the high tier until a person re-checks it, and an answer set
+without the new question is reported as incomplete with a note that explains the split and asks for both answers.
+Use `split_from` the same way when you split a question in your own policy.
 
 ## Ruling controls out: `applies_when`
 

@@ -417,6 +417,7 @@ def test_records_do_not_require_controls_the_answers_rule_out(tmp_path: Path) ->
         "outputs_concern_people": False,
         "consequential_decisions": False,
         "regulated_advice": False,
+        "inside_regulated_process": False,
         "vulnerable_users": False,
         "third_party_model_provider": False,
         "uses_retrieval": False,

@@ -213,7 +213,13 @@
     {
       "id": "regulated_advice",
       "type": "boolean",
-      "text": "Does it give or support regulated advice (medical, legal, financial, tax) or run inside a regulated process?"
+      "text": "Does it give or support regulated advice to people, such as medical, legal, financial or tax advice?"
+    },
+    {
+      "id": "inside_regulated_process",
+      "type": "boolean",
+      "split_from": "regulated_advice",
+      "text": "Does it run inside a regulated process, such as know-your-customer checks, anti-money-laundering or fraud monitoring, complaints or dispute handling, claims handling or regulatory reporting?"
     },
     {
       "id": "vulnerable_users",
@@ -320,7 +326,7 @@
         "question": "regulated_advice",
         "equals": true
       },
-      "reason": "Gives or supports regulated advice, or runs inside a regulated process."
+      "reason": "Gives or supports regulated advice (medical, legal, financial or tax)."
     },
     {
       "id": "H-04",
@@ -424,6 +430,15 @@
         ]
       },
       "reason": "Acts without approval of each individual action."
+    },
+    {
+      "id": "L-07",
+      "tier": "limited",
+      "when": {
+        "question": "inside_regulated_process",
+        "equals": true
+      },
+      "reason": "Runs inside a regulated process, which brings record-keeping, audit and supervisory duties. Other rules decide whether it is high risk, such as decisions about people, sensitive data or financial impact."
     }
   ],
   "conditional_controls": [

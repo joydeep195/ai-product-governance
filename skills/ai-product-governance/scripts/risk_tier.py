@@ -221,6 +221,10 @@ def validate_policy(policy: Any) -> List[str]:
             problems.append(f"question '{question_id}' has unknown type '{question.get('type')}'")
         if question.get("type") in ("enum", "multiselect") and not question.get("options"):
             problems.append(f"question '{question_id}' needs options")
+    for question_id, question in questions.items():
+        source = question.get("split_from")
+        if source is not None and (source not in questions or source == question_id):
+            problems.append(f"question '{question_id}' is split_from unknown question '{source}'")
 
     seen_rules = set()
     for rule in policy["rules"]:
@@ -450,6 +454,15 @@ def classify(
             "add controls, never lower them. Before presenting any tier, ask the user the unanswered questions, or "
             "record each one in the Assumptions Ledger with the answer you assumed, then re-run the calculator."
         )
+    questions = {question["id"]: question for question in policy["questions"]}
+    for question_id in unanswered:
+        source = questions[question_id].get("split_from")
+        if source in normalised:
+            notes.append(
+                f'`{question_id}` was split out of `{source}`, which now asks only: "{questions[source]["text"]}" '
+                f"Answers written before the split may have folded `{question_id}` into `{source}`. Re-check "
+                f'`{source}` and answer `{question_id}`: "{questions[question_id]["text"]}"'
+            )
     if within_cap is False:
         notes.append(
             f"Planned autonomy {requested} exceeds the launch cap {cap} for the {tier['name']} tier. "
