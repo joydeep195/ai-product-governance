@@ -168,7 +168,7 @@ Full details: [docs/architecture.md](docs/architecture.md).
 | `aipg validate --strict` | Agent Skills spec compliance, policy schema, links, version consistency, size budgets |
 | `aipg build --check` | Every integration matches the skill |
 | Wheel smoke test in a clean environment | The packaged skill and MCP server work outside the repository |
-| `aipg eval` (scheduled and on demand) | Behavioural quality across models, with and without the skill, gated against a baseline |
+| `aipg eval` (local agent session) or `/ai-eval` | Behavioural quality in the AI tool and session you are using, with and without the skill, gated against a baseline |
 
 ### Tool-independent evals
 
